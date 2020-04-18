@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
+import pikaparser.parser.Parser;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
@@ -61,6 +62,9 @@ public class MemoTable {
 
         // Record a backref to the parent MemoEntry, so that if the subclause match changes, the changes
         // will propagate to the parent
+        if (Parser.DEBUG) {
+            System.out.println("Adding backref: " + memoEntry.memoKey + " -> " + parentMemoKey);
+        }
         memoEntry.backRefs.add(parentMemoKey);
 
         if (memoEntry.bestMatch != null) {

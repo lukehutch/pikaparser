@@ -87,7 +87,8 @@ public class CharSet extends Terminal {
             }
         }
         if (Parser.DEBUG) {
-            System.out.println("Failed to match at position " + memoKey.startPos + ": " + memoKey);
+            System.out.println(
+                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
         }
         return false;
     }
@@ -101,7 +102,11 @@ public class CharSet extends Terminal {
         if (matches(memoKey, input)) {
             return memoTable.addTerminalMatch(memoKey, /* terminalLen = */ 1, updatedEntries);
         }
-        // Don't call MemoTable.addMatch for terminals that don't match, to limit size of memo table
+        if (Parser.DEBUG) {
+            System.out.println(
+                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
+        }
+        // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
     }
 

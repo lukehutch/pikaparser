@@ -67,7 +67,7 @@ public class Seq extends Clause {
                 // Fail after first subclause fails to match
                 if (Parser.DEBUG) {
                     System.out.println("Failed to match at subClauseIdx " + subClauseIdx + ", position "
-                            + currStartPos + ": " + memoKey);
+                            + currStartPos + ": " + memoKey.toStringWithRuleNames());
                 }
                 return null;
             }
@@ -77,7 +77,8 @@ public class Seq extends Clause {
             subClauseMatches[subClauseIdx] = subClauseMatch;
             currStartPos += subClauseMatch.len;
         }
-        return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches, updatedEntries);
+        return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches,
+                updatedEntries);
     }
 
     @Override

@@ -26,11 +26,12 @@ public class NotFollowedBy extends Clause {
                 : memoTable.lookUpMemo(subClauseMemoKey, input, memoKey, updatedEntries);
         // Replace any invalid subclause match with a zero-char-consuming match
         if (subClauseMatch == null) {
-            return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, new Match[] { subClauseMatch },
-                    updatedEntries);
+            return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,
+                    new Match[] { subClauseMatch }, updatedEntries);
         }
         if (Parser.DEBUG) {
-            System.out.println("Failed to match at position " + memoKey.startPos + ": " + memoKey);
+            System.out.println(
+                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
         }
         return null;
     }

@@ -45,11 +45,13 @@ public class First extends Clause {
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
                     : memoTable.lookUpMemo(subClauseMemoKey, input, memoKey, updatedEntries);
             if (subClauseMatch != null) {
-                return memoTable.addNonTerminalMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch }, updatedEntries);
+                return memoTable.addNonTerminalMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch },
+                        updatedEntries);
             }
         }
         if (Parser.DEBUG) {
-            System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": " + memoKey);
+            System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": "
+                    + memoKey.toStringWithRuleNames());
         }
         return null;
     }

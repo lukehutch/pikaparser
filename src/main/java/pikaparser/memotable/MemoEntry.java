@@ -70,7 +70,7 @@ public class MemoEntry {
             // Replace bestMatch with newMatch
             bestMatch = newBestMatch;
             numMatchObjectsMemoized.incrementAndGet();
-            
+
             StringBuilder debug = null;
             if (Parser.DEBUG) {
                 debug = new StringBuilder();
@@ -84,7 +84,8 @@ public class MemoEntry {
                 activeSetOut.add(parentMemoKey);
 
                 if (Parser.DEBUG) {
-                    debug.append("    Seed parent clause: " + parentMemoKey.toStringWithRuleNames() + "\n");
+                    debug.append(
+                            "    Following seed parent clause: " + parentMemoKey.toStringWithRuleNames() + "\n");
                 }
             }
 
@@ -93,7 +94,7 @@ public class MemoEntry {
                 activeSetOut.add(backref);
 
                 if (Parser.DEBUG) {
-                    debug.append("    Backref: " + backref.toStringWithRuleNames() + "\n");
+                    debug.append("    Following backref: " + backref.toStringWithRuleNames() + "\n");
                 }
             }
 

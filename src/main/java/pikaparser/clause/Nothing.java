@@ -24,7 +24,7 @@ public class Nothing extends Terminal {
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries) {
         // Terminals always add matches to the memo table if they match
-        // Don't call MemoTable.addMatch for Nothing, to limit size of memo table
+        // Don't call MemoTable.addTerminalMatch for Nothing, to limit size of memo table
         return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
     }
 

@@ -31,11 +31,11 @@ public class Start extends Terminal {
         if (memoKey.startPos == 0) {
             return memoTable.addTerminalMatch(memoKey, /* terminalLen = */ 0, updatedEntries);
         }
-        // Don't call MemoTable.addMatch for non-matching terminals, to limit size of memo table
         if (Parser.DEBUG) {
             System.out.println(getClass().getSimpleName() + " failed to match at position " + memoKey.startPos
-                    + ": " + memoKey);
+                    + ": " + memoKey.toStringWithRuleNames());
         }
+        // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
     }
 

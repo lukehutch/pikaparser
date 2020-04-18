@@ -48,12 +48,12 @@ public class Longest extends Clause {
             }
         }
         if (longestSubClauseMatch != null) {
-            return memoTable.addNonTerminalMatch(memoKey, longestSubClauseMatchIdx, new Match[] { longestSubClauseMatch },
-                    updatedEntries);
+            return memoTable.addNonTerminalMatch(memoKey, longestSubClauseMatchIdx,
+                    new Match[] { longestSubClauseMatch }, updatedEntries);
         } else {
             if (Parser.DEBUG) {
-                System.out
-                        .println("All subclauses failed to match at position " + memoKey.startPos + ": " + memoKey);
+                System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": "
+                        + memoKey.toStringWithRuleNames());
             }
             return null;
         }

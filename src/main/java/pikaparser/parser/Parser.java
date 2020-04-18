@@ -73,8 +73,8 @@ public class Parser {
             // to be added to the memo table, because the match status of a given terminal at a given position will
             // never change).
             (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream())
-                    .filter(clause -> clause instanceof Terminal && !clause.seedParentClauses.isEmpty()
-                    // Don't match Nothing everywhere -- it always matches
+                    .filter(clause -> clause instanceof Terminal
+                            // Don't match Nothing everywhere -- it always matches
                             && !(clause instanceof Nothing))
                     .forEach(clause -> {
                         // Terminals are matched top down

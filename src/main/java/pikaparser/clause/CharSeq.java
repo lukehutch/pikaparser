@@ -27,10 +27,11 @@ public class CharSeq extends Terminal {
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
             return memoTable.addTerminalMatch(memoKey, /* terminalLen = */ str.length(), updatedEntries);
         }
-        // Don't call MemoTable.addMatch for terminals that don't match, to limit size of memo table
         if (Parser.DEBUG) {
-            System.out.println("Failed to match at position " + memoKey.startPos + ": " + memoKey);
+            System.out.println(
+                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
         }
+        // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
     }
 
