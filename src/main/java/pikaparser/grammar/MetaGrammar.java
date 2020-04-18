@@ -1,6 +1,6 @@
 package pikaparser.grammar;
 
-import static pikaparser.clause.Clause.*;
+import static pikaparser.clause.ClauseFactory.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,7 +68,7 @@ public class MetaGrammar {
             rule(RULE, //
                     ast(RULE_AST, seq(r(IDENT), r(WSC), //
                             optional(r(PREC)), //
-                            c('='), r(WSC), //
+                            str("<-"), r(WSC), //
                             r(CLAUSE), r(WSC), c(';'), r(WSC)))), //
 
             // Define precedence order for clause sequences
@@ -116,7 +116,6 @@ public class MetaGrammar {
                     first( //
                             c('('), //
                             c(')'), //
-                            c('='), //
                             c(';'), //
                             c(':'), //
                             c('^'), //
@@ -127,6 +126,7 @@ public class MetaGrammar {
                             c('/'), //
                             c('^'), //
                             c('-'), //
+                            str("<-"), //
                             // Match both CHAR_SET and PREC, since PREC looks like a CHAR_SET
                             longest(r(PREC), r(CHAR_SET)), //
                             r(IDENT), //

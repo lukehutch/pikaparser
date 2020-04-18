@@ -245,7 +245,7 @@ public class Rule {
         StringBuilder buf = new StringBuilder();
         buf.append('(');
         buf.append(ruleName);
-        buf.append(" = ");
+        buf.append(" <- ");
         buf.append(clause.toString());
         buf.append(')');
         return buf.toString();

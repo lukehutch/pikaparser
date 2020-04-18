@@ -24,7 +24,7 @@ public class RuleRef extends Clause {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = "<" + refdRuleName + ">";
+            toStringCached = refdRuleName;
         }
         return toStringCached;
     }

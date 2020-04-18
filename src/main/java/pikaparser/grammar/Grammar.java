@@ -1,6 +1,6 @@
 package pikaparser.grammar;
 
-import static pikaparser.clause.Clause.*;
+import static pikaparser.clause.ClauseFactory.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
