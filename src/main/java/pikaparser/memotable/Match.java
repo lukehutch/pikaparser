@@ -117,7 +117,7 @@ public class Match implements Comparable<Match> {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-        System.out.println(indentStr + "│   ");
+        // System.out.println(indentStr + "│   ");
         System.out.println(indentStr + (isLastChild ? "└─ " : "├─ ")
                 + (astNodeLabel == null ? "" : astNodeLabel + ":(") + memoKey.toStringWithRuleNames() + "+" + len
                 + (astNodeLabel == null ? "" : ")") + " \"" + inp + "\"");

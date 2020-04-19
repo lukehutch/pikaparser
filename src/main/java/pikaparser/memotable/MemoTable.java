@@ -63,7 +63,7 @@ public class MemoTable {
         // Record a backref to the parent MemoEntry, so that if the subclause match changes, the changes
         // will propagate to the parent
         if (Parser.DEBUG) {
-            System.out.println("Adding backref: " + memoEntry.memoKey + " -> " + parentMemoKey);
+            System.out.println("    Adding backref: " + memoEntry.memoKey + " -> " + parentMemoKey);
         }
         memoEntry.backRefs.add(parentMemoKey);
 

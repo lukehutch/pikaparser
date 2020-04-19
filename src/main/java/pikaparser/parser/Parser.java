@@ -53,20 +53,21 @@ public class Parser {
         if (grammar.lexClause != null) {
             // Run lex preprocessing step, top-down, from each character position, skipping to end of each
             // subsequent match
-            for (int i = 0; i < input.length();) {
-                var memoKey = new MemoKey(grammar.lexClause, /* startPos = */ i);
+            for (int startPos = 0; startPos < input.length();) {
+                var memoKey = new MemoKey(grammar.lexClause, startPos);
                 // Match the lex rule top-down, populating the memo table for subclause matches
                 var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
                         updatedEntries);
                 var matchLen = match != null ? match.len : 0;
-                if (match != null) {
-                    if (Parser.DEBUG) {
+                if (Parser.DEBUG) {
+                    if (match != null) {
                         System.out.println("Lex match: " + match.toStringWithRuleNames());
+                    } else {
+                        System.out.println("Lex rule did not match at input position " + startPos);
                     }
                 }
-                i += Math.max(1, matchLen);
+                startPos += Math.max(1, matchLen);
             }
-            // TODO: report warning for areas lex rule did not match
         } else {
             // Find positions that all terminals match, and create the initial active set from parents of terminals,
             // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
