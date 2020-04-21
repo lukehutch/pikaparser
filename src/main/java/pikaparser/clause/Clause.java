@@ -87,14 +87,19 @@ public abstract class Clause {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    public String getRuleNames() {
+        return rules == null ? ""
+                : String.join(", ",
+                        rules.stream().map(rule -> rule.ruleName).sorted().collect(Collectors.toList()));
+    }
+
     public String toStringWithRuleNames() {
         if (toStringWithRuleNameCached == null) {
             if (rules != null) {
                 StringBuilder buf = new StringBuilder();
                 buf.append('(');
                 // Add rule names
-                buf.append(String.join(", ",
-                        rules.stream().map(rule -> rule.ruleName).sorted().collect(Collectors.toList())));
+                buf.append(getRuleNames());
                 buf.append(" <- ");
                 // Add any AST node labels
                 for (int i = 0, j = 0; i < rules.size(); i++) {

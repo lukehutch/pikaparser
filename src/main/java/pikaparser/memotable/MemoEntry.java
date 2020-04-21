@@ -64,18 +64,18 @@ public class MemoEntry {
         // Get the best new updated match for this MemoEntry, if there is one
         var newBestMatch = newMatches.peek();
         if (newBestMatch != null) {
+            StringBuilder debug = null;
+            if (Parser.DEBUG) {
+                debug = new StringBuilder();
+                debug.append("Setting new best match: " + newBestMatch.toStringWithRuleNames() + "\n");
+            }
+
             // Clear newMatches for the next iteration
             newMatches.clear();
 
             // Replace bestMatch with newMatch
             bestMatch = newBestMatch;
             numMatchObjectsMemoized.incrementAndGet();
-
-            StringBuilder debug = null;
-            if (Parser.DEBUG) {
-                debug = new StringBuilder();
-                debug.append("Setting new best match: " + bestMatch.toStringWithRuleNames() + "\n");
-            }
 
             // Since there was a new best match at this memo entry, any parent clauses that have this clause
             // in the first position (that must match one or more characters) needs to be added to the active set
