@@ -10,8 +10,12 @@ import pikaparser.parser.Parser;
 
 public class NotFollowedBy extends Clause {
 
-    NotFollowedBy(Clause subClause) {
+    public NotFollowedBy(Clause subClause) {
         super(new Clause[] { subClause });
+    }
+
+    public NotFollowedBy(Clause[] subClauses) {
+        super(subClauses);
     }
 
     @Override
@@ -34,6 +38,11 @@ public class NotFollowedBy extends Clause {
                     "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
         }
         return null;
+    }
+
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new NotFollowedBy(duplicateSubClauses(visited));
     }
 
     @Override

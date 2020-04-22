@@ -21,11 +21,15 @@ public class CharSet extends Terminal {
 
     public boolean invertMatch = false;
 
-    CharSet(char c) {
+    public CharSet(char c) {
         super();
         this.charSet.add(c);
     }
 
+    private CharSet() {
+        super();
+    }
+    
     public CharSet(String chars) {
         super();
         for (int i = 0; i < chars.length(); i++) {
@@ -108,6 +112,17 @@ public class CharSet extends Terminal {
         }
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
+    }
+    
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        var dup = new CharSet();
+        dup.charSet.addAll(charSet);
+        for (var subCharSet : subCharSets) {
+            dup.subCharSets.add((CharSet) subCharSet.duplicate());
+        }
+        dup.invertMatch = invertMatch;
+        return dup;
     }
 
     private void toString(StringBuilder buf) {

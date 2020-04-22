@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
 import pikaparser.clause.RuleRef;
 
@@ -25,17 +24,7 @@ public class Rule {
         this.ruleName = ruleName;
         this.precedence = precedence;
         this.associativity = associativity;
-
-        // Lift AST node label from clause into astNodeLabel field in rule
-        if (clause instanceof ASTNodeLabel) {
-            this.astNodeLabel = ((ASTNodeLabel) clause).astNodeLabel;
-            this.clause = clause.subClauses[0];
-        } else {
-            this.clause = clause;
-        }
-
-        // Lift AST node labels from subclauses into subClauseASTNodeLabels array in parent
-        liftASTNodeLabels(this.clause);
+        this.clause = clause;
 
         // Register rule in clause, for toString()
         this.clause.registerRule(this);
@@ -45,36 +34,6 @@ public class Rule {
         // Use precedence of -1 for rules that only have one precedence
         // (this causes the precedence number not to be shown in the output of toStringWithRuleNames())
         this(ruleName, -1, /* associativity = */ null, clause);
-    }
-
-    /**
-     * Label subclause positions with the AST node label from any {@link CreateASTNode} nodes in each subclause
-     * position.
-     */
-    private static void liftASTNodeLabels(Clause clause) {
-        for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
-            Clause subClause = clause.subClauses[subClauseIdx];
-            if (subClause instanceof ASTNodeLabel) {
-                // Copy any AST node labels from subclause node to subClauseASTNodeLabels array within the parent
-                var subClauseASTNodeLabel = ((ASTNodeLabel) subClause).astNodeLabel;
-                if (subClauseASTNodeLabel != null) {
-                    if (clause.subClauseASTNodeLabels == null) {
-                        // Alloc array for subclause node labels, if not already done
-                        clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
-                    }
-                    if (clause.subClauseASTNodeLabels[subClauseIdx] == null) {
-                        // Update subclause label, if it hasn't already been labeled
-                        clause.subClauseASTNodeLabels[subClauseIdx] = subClauseASTNodeLabel;
-                    }
-                } else {
-                    throw new IllegalArgumentException(ASTNodeLabel.class.getSimpleName() + " is null");
-                }
-                // Remove the ASTNodeLabel node 
-                clause.subClauses[subClauseIdx] = subClause.subClauses[0];
-            }
-            // Recurse
-            liftASTNodeLabels(subClause);
-        }
     }
 
     /**
@@ -114,7 +73,8 @@ public class Rule {
     }
 
     /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
-    private void resolveRuleRefs(Rule rule, Clause clause, Map<String, Rule> ruleNameToRule, Set<Clause> visited) {
+    private void resolveRuleRefs(Rule rule, Clause clause, Map<String, Rule> ruleNameToRule,
+            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
         if (visited.add(clause)) {
             for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
                 Clause subClause = clause.subClauses[subClauseIdx];
@@ -123,7 +83,9 @@ public class Rule {
                     String refdRuleName = ((RuleRef) subClause).refdRuleName;
 
                     // Set current clause to a direct reference to the referenced rule
-                    var refdRule = ruleNameToRule.get(refdRuleName);
+                    var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
+                    var refdRule = ruleNameToRule
+                            .get(lowestPrecRuleName != null ? lowestPrecRuleName : refdRuleName);
                     if (refdRule == null) {
                         throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
                     }
@@ -143,14 +105,16 @@ public class Rule {
                     // Stop recursing at RuleRef
                 } else {
                     // Recurse through subclause tree if subclause was not a RuleRef 
-                    resolveRuleRefs(rule, subClause, ruleNameToRule, visited);
+                    resolveRuleRefs(rule, subClause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName,
+                            visited);
                 }
             }
         }
     }
 
     /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
-    public void resolveRuleRefs(Map<String, Rule> ruleNameToRule, Set<Clause> visited) {
+    public void resolveRuleRefs(Map<String, Rule> ruleNameToRule,
+            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
         if (clause instanceof RuleRef) {
             // Follow a chain of toplevel RuleRef instances
             Set<Clause> chainVisited = new HashSet<>();
@@ -169,7 +133,9 @@ public class Rule {
                     throw new IllegalArgumentException("Rule references only itself: " + ruleName);
                 }
 
-                var refdRule = ruleNameToRule.get(refdRuleName);
+                // Use lowest precedence level for rule, if rule refers to a rule with multiple precedence levels
+                var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
+                var refdRule = ruleNameToRule.get(lowestPrecRuleName != null ? lowestPrecRuleName : refdRuleName);
                 if (refdRule == null) {
                     throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
                 }
@@ -191,11 +157,14 @@ public class Rule {
 
         } else {
             // Recurse through subclause tree if toplevel clause was not a RuleRef 
-            resolveRuleRefs(this, clause, ruleNameToRule, visited);
+            resolveRuleRefs(this, clause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName, visited);
         }
     }
 
-    /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lexing). */
+    /**
+     * Check a {@link Clause} tree does not contain any cycles after RuleRef instances have been replaced by direct
+     * clause references (needed to ensure top-down lexing terminates, since lexing is not memoized).
+     */
     private static void checkNoCycles(Clause clause, Set<Clause> discovered, Set<Clause> finished) {
         if (clause instanceof RuleRef) {
             throw new IllegalArgumentException(

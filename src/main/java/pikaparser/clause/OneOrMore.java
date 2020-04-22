@@ -15,6 +15,10 @@ public class OneOrMore extends Clause {
         super(new Clause[] { subClause });
     }
 
+    public OneOrMore(Clause[] subClauses) {
+        super(subClauses);
+    }
+
     @Override
     public void testWhetherCanMatchZeroChars() {
         if (subClauses[0].canMatchZeroChars) {
@@ -58,6 +62,11 @@ public class OneOrMore extends Clause {
             }
             return null;
         }
+    }
+
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new OneOrMore(duplicateSubClauses(visited));
     }
 
     @Override

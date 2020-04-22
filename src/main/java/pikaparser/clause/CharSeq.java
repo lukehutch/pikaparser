@@ -13,7 +13,7 @@ public class CharSeq extends Terminal {
     public final String str;
     public final boolean ignoreCase;
 
-    CharSeq(String str, boolean ignoreCase) {
+    public CharSeq(String str, boolean ignoreCase) {
         super();
         this.str = str;
         this.ignoreCase = ignoreCase;
@@ -33,6 +33,11 @@ public class CharSeq extends Terminal {
         }
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
+    }
+    
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new CharSeq(str, ignoreCase);
     }
 
     @Override

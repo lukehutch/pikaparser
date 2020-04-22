@@ -10,7 +10,7 @@ import pikaparser.memotable.MemoTable;
 public class RuleRef extends Clause {
     public String refdRuleName;
 
-    RuleRef(String refdRuleName) {
+    public RuleRef(String refdRuleName) {
         super(new Clause[0]);
         this.refdRuleName = refdRuleName;
     }
@@ -21,6 +21,11 @@ public class RuleRef extends Clause {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
 
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new RuleRef(refdRuleName);
+    }
+    
     @Override
     public String toString() {
         if (toStringCached == null) {

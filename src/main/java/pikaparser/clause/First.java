@@ -10,7 +10,7 @@ import pikaparser.parser.Parser;
 
 public class First extends Clause {
 
-    First(Clause... subClauses) {
+    public First(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
             throw new IllegalArgumentException(First.class.getSimpleName() + " expects 2 or more subclauses");
@@ -54,6 +54,11 @@ public class First extends Clause {
                     + memoKey.toStringWithRuleNames());
         }
         return null;
+    }
+    
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new First(duplicateSubClauses(visited));
     }
 
     @Override

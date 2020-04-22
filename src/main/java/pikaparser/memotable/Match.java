@@ -119,16 +119,14 @@ public class Match implements Comparable<Match> {
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         // System.out.println(indentStr + "│");
         System.out.println(indentStr + (isLastChild ? "└─" : "├─")
-//                + (astNodeLabel == null ? "" : astNodeLabel + ":(") + memoKey.toStringWithRuleNames() + "+" + len
-                + (astNodeLabel == null ? "" : astNodeLabel + ":(") + (memoKey.clause.getRuleNames().isEmpty() ? memoKey.clause.toString() : memoKey.clause.getRuleNames())+ (astNodeLabel == null ? "" : ")") + ": start=" + memoKey.startPos + "; len=" + len
-                + "; match=\"" + inp + "\"");
-//        + (astNodeLabel == null ? "" : ")") + "; match=\"" + inp + "\"");
+                + (astNodeLabel == null ? "" : astNodeLabel + ":(") + memoKey.toStringWithRuleNames() + "+" + len
+                + (astNodeLabel == null ? "" : ")") + " : \"" + inp + "\"");
         if (subClauseMatches != null) {
             for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatches.length; subClauseMatchIdx++) {
                 var subClauseMatch = subClauseMatches[subClauseMatchIdx];
                 var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
-                subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "  " : "│ "),
-                        subClauseASTNodeLabel, subClauseMatchIdx == subClauseMatches.length - 1);
+                subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
+                        subClauseMatchIdx == subClauseMatches.length - 1);
             }
         }
     }

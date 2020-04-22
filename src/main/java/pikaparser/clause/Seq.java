@@ -12,7 +12,7 @@ import pikaparser.parser.Parser;
 
 public class Seq extends Clause {
 
-    Seq(Clause... subClauses) {
+    public Seq(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
             throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
@@ -79,6 +79,11 @@ public class Seq extends Clause {
         }
         return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches,
                 updatedEntries);
+    }
+
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new Seq(duplicateSubClauses(visited));
     }
 
     @Override

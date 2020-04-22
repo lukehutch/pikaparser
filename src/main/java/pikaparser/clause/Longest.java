@@ -10,7 +10,7 @@ import pikaparser.parser.Parser;
 
 public class Longest extends Clause {
 
-    Longest(Clause... subClauses) {
+    public Longest(Clause... subClauses) {
         super(subClauses);
         if (subClauses.length < 2) {
             throw new IllegalArgumentException(Longest.class.getSimpleName() + " expects 2 or more subclauses");
@@ -57,6 +57,11 @@ public class Longest extends Clause {
             }
             return null;
         }
+    }
+
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new Longest(duplicateSubClauses(visited));
     }
 
     @Override

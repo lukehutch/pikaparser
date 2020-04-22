@@ -32,7 +32,7 @@ public abstract class Clause {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    protected Clause(Clause... subClauses) {
+    public Clause(Clause... subClauses) {
         this.subClauses = subClauses;
     }
 
@@ -84,6 +84,31 @@ public abstract class Clause {
     /** Match a clause bottom-up at a given start position. */
     public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries);
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Recursively duplicate the subclause graph. */
+    protected Clause[] duplicateSubClauses(Set<Clause> visited) {
+        if (visited.add(this)) {
+            Clause[] subclauseDups = new Clause[subClauses.length];
+            for (int i = 0; i < subClauses.length; i++) {
+                subclauseDups[i] = subClauses[i].duplicate(visited);
+            }
+            return subclauseDups;
+        } else {
+            // The duplicate method should only be called before RuleRef objects are replaced with direct refs,
+            // so that there are no cycles in the Clause graph
+            throw new IllegalArgumentException("Tried to duplicate a Clause graph that contained a cycle");
+        }
+    }
+
+    /** Deep-duplicate a {@link Clause}. */
+    protected abstract Clause duplicate(Set<Clause> visited);
+
+    /** Deep-duplicate a {@link Clause}. */
+    final public Clause duplicate() {
+        return duplicate(new HashSet<Clause>());
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

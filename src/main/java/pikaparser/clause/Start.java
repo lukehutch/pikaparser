@@ -19,7 +19,7 @@ import pikaparser.parser.Parser;
 public class Start extends Terminal {
     public static final String START_STR = "^";
 
-    Start() {
+    public Start() {
         super();
     }
 
@@ -37,6 +37,11 @@ public class Start extends Terminal {
         }
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
+    }
+    
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new Start();
     }
 
     @Override

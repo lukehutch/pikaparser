@@ -10,10 +10,14 @@ import pikaparser.parser.Parser;
 
 public class FollowedBy extends Clause {
 
-    FollowedBy(Clause subClause) {
+    public FollowedBy(Clause subClause) {
         super(new Clause[] { subClause });
     }
 
+    public FollowedBy(Clause[] subClauses) {
+        super(subClauses);
+    }
+    
     @Override
     public void testWhetherCanMatchZeroChars() {
         if (subClauses[0].canMatchZeroChars) {
@@ -41,6 +45,11 @@ public class FollowedBy extends Clause {
                     "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
         }
         return null;
+    }
+    
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new FollowedBy(duplicateSubClauses(visited));
     }
 
     @Override

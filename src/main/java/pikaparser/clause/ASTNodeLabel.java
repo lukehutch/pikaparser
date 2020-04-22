@@ -10,9 +10,14 @@ import pikaparser.memotable.MemoTable;
 public class ASTNodeLabel extends Clause {
     public final String astNodeLabel;
 
-    ASTNodeLabel(String astNodeLabel, Clause clause) {
+    public ASTNodeLabel(String astNodeLabel, Clause clause) {
         super(clause);
         this.astNodeLabel = astNodeLabel;
+    }
+
+    @Override
+    protected Clause duplicate(Set<Clause> visited) {
+        return new ASTNodeLabel(astNodeLabel, subClauses[0].duplicate());
     }
 
     @Override
