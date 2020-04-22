@@ -433,22 +433,8 @@ public class ParserInfo {
 
     public static void printParseResult(Parser parser, String topLevelRuleName, String[] syntaxCoverageRuleNames,
             boolean showAllMatches) {
-        var topLevelRule = parser.grammar.getRule(topLevelRuleName);
-        if (topLevelRule == null) {
-            throw new IllegalArgumentException("No clause named \"" + topLevelRuleName + "\"");
-        }
-
         // Print parse tree, and find which characters were consumed and which weren't
         BitSet consumedChars = new BitSet(parser.input.length() + 1);
-
-        var topLevelRuleClause = topLevelRule.clause;
-        var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRuleClause);
-        if (!topLevelMatches.isEmpty()) {
-            for (int i = 0; i < topLevelMatches.size(); i++) {
-                var topLevelMatch = topLevelMatches.get(i);
-                getConsumedChars(topLevelMatch, consumedChars);
-            }
-        }
 
         // Find reachable clauses, by reversing topological order of clauses, and putting terminals last 
         var clauseOrder = getClauseOrder(parser);
@@ -503,23 +489,36 @@ public class ParserInfo {
             }
         }
 
-        System.out.println(
-                "\n====================================\n\nFinal AST for rule \"" + topLevelRuleName + "\":");
-        if (!topLevelMatches.isEmpty()) {
-            var topLevelASTNodeName = topLevelRule.astNodeLabel;
-            if (topLevelASTNodeName == null) {
-                topLevelASTNodeName = "<root>";
-            }
-            for (int i = 0; i < topLevelMatches.size(); i++) {
-                var topLevelMatch = topLevelMatches.get(i);
-                var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);
-                if (ast != null) {
-                    System.out.println();
-                    System.out.println(ast.toString());
+        var topLevelRule = parser.grammar.ruleNameWithPrecedenceToRule.get(topLevelRuleName);
+        if (topLevelRule != null) {
+            var topLevelRuleClause = topLevelRule.clause;
+            var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRuleClause);
+            if (!topLevelMatches.isEmpty()) {
+                for (int i = 0; i < topLevelMatches.size(); i++) {
+                    var topLevelMatch = topLevelMatches.get(i);
+                    getConsumedChars(topLevelMatch, consumedChars);
                 }
             }
+            if (!topLevelMatches.isEmpty()) {
+                System.out.println("\n====================================\n\nFinal AST for rule \""
+                        + topLevelRuleName + "\":");
+                var topLevelASTNodeName = topLevelRule.astNodeLabel;
+                if (topLevelASTNodeName == null) {
+                    topLevelASTNodeName = "<root>";
+                }
+                for (int i = 0; i < topLevelMatches.size(); i++) {
+                    var topLevelMatch = topLevelMatches.get(i);
+                    var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);
+                    if (ast != null) {
+                        System.out.println();
+                        System.out.println(ast.toString());
+                    }
+                }
+            } else {
+                System.out.println("\nToplevel rule \"" + topLevelRuleName + "\" did not match anything");
+            }
         } else {
-            System.out.println("\nRule \"" + topLevelRuleName + "\" did not match anything");
+            System.out.println("\nToplevel rule \"" + topLevelRuleName + "\" does not exist");
         }
 
         printSyntaxErrors(parser, syntaxCoverageRuleNames);

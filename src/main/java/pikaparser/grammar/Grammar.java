@@ -262,7 +262,7 @@ public class Grammar {
         for (int i = 0; i < clause.subClauses.length; i++) {
             var subClause = clause.subClauses[i];
             if (subClause instanceof RuleRef && ((RuleRef) subClause).refdRuleName.equals(selfRefRuleName)) {
-                clause.subClauses[i] = new First(new RuleRef(currPrecRuleName),
+                clause.subClauses[i] = new Longest(new RuleRef(currPrecRuleName),
                         new RuleRef(nextHighestPrecRuleName));
                 // Break out of recursion
                 return true;
