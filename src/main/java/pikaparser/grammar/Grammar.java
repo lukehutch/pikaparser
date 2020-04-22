@@ -48,8 +48,10 @@ public class Grammar {
             }
             rulesWithName.add(rule);
 
-            // Make sure there are no cycles (to simplify other recursive routines)
-            checkNoCycles(rule.clause, rule.ruleName, new HashSet<Clause>());
+            // Make sure there are no cycles in the grammar before RuleRef instances have been replaced
+            // with direct references (checking once up front simplifies other recursive routines, so that
+            // they don't have to check for infinite recursion)
+            checkNoRefCycles(rule.clause, rule.ruleName, new HashSet<Clause>());
         }
         List<Rule> allRules = new ArrayList<>(rules);
         Map<String, String> ruleNameToLowestPrecedenceLevelRuleName = new HashMap<>();
@@ -71,7 +73,6 @@ public class Grammar {
                 }
                 // Drop the ASTNodeLabel node
                 rule.clause = rule.clause.subClauses[0];
-                rule.clause.registerRule(rule);
             }
 
             // Lift AST node labels from subclauses into subClauseASTNodeLabels array in parent
@@ -90,21 +91,25 @@ public class Grammar {
             }
         }
 
+        // Register each rule with its toplevel clause (used in the clause's toString() method)
+        for (var rule : allRules) {
+            rule.clause.registerRule(rule);
+        }
+
         // Intern clauses based on their toString() value, coalescing shared sub-clauses into a DAG, so that
         // effort is not wasted parsing different instances of the same clause multiple times, and so that
         // when a subclause matches, all parent clauses will be added to the active set in the next iteration.
         // Also causes the toString() values to be cached, so that after RuleRefs are replaced with direct
         // Clause references, toString() doesn't get stuck in an infinite loop.
         Map<String, Clause> toStringToClause = new HashMap<>();
-        Set<Clause> internVisited = new HashSet<>();
         for (var rule : allRules) {
-            rule.intern(toStringToClause, internVisited);
+            rule.clause = intern(rule.clause, toStringToClause);
         }
 
         // Resolve each RuleRef into a direct reference to the referenced clause
         Set<Clause> ruleClausesVisited = new HashSet<>();
         for (var rule : allRules) {
-            rule.resolveRuleRefs(ruleNameWithPrecedenceToRule, ruleNameToLowestPrecedenceLevelRuleName,
+            resolveRuleRefs(rule, ruleNameWithPrecedenceToRule, ruleNameToLowestPrecedenceLevelRuleName,
                     ruleClausesVisited);
         }
 
@@ -115,7 +120,7 @@ public class Grammar {
                 throw new IllegalArgumentException("Unknown lex rule name: " + lexRuleName);
             }
             // Check the lex rule does not contain any cycles
-            lexRule.checkNoCycles();
+            checkNoDAGCycles(lexRule.clause);
             lexClause = lexRule.clause;
         }
 
@@ -124,7 +129,7 @@ public class Grammar {
         allClauses = new ArrayList<Clause>();
         HashSet<Clause> allClausesVisited = new HashSet<Clause>();
         for (var rule : allRules) {
-            rule.findReachableClauses(allClausesVisited, allClauses);
+            findReachableClauses(rule.clause, allClausesVisited, allClauses);
         }
 
         // Find clauses that always match zero or more characters, e.g. FirstMatch(X | Nothing).
@@ -138,6 +143,8 @@ public class Grammar {
             clause.backlinkToSeedParentClauses();
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Label subclause positions with the AST node label from any {@link CreateASTNode} nodes in each subclause
@@ -169,16 +176,53 @@ public class Grammar {
         }
     }
 
-    private static void checkNoCycles(Clause clause, String selfRefRuleName, Set<Clause> visited) {
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Check a {@link Clause} tree does not contain any cycles after RuleRef instances have been replaced by direct
+     * clause references (needed to ensure top-down lexing terminates, since lexing is not memoized).
+     */
+    private static void checkNoDAGCycles(Clause clause, Set<Clause> discovered, Set<Clause> finished) {
+        if (clause instanceof RuleRef) {
+            throw new IllegalArgumentException(
+                    "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
+        }
+        discovered.add(clause);
+        for (var subClause : clause.subClauses) {
+            if (discovered.contains(subClause)) {
+                throw new IllegalArgumentException("Lex rule's clause tree contains a cycle at " + subClause);
+            }
+            if (!finished.contains(subClause)) {
+                checkNoDAGCycles(subClause, discovered, finished);
+            }
+        }
+        discovered.remove(clause);
+        finished.add(clause);
+    }
+
+    /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lex). */
+    private static void checkNoDAGCycles(Clause clause) {
+        var discovered = new HashSet<Clause>();
+        var finished = new HashSet<Clause>();
+        for (var subClause : clause.subClauses) {
+            if (!discovered.contains(subClause) && !finished.contains(subClause)) {
+                checkNoDAGCycles(subClause, discovered, finished);
+            }
+        }
+    }
+
+    private static void checkNoRefCycles(Clause clause, String selfRefRuleName, Set<Clause> visited) {
         if (visited.add(clause)) {
             for (Clause subClause : clause.subClauses) {
-                checkNoCycles(subClause, selfRefRuleName, visited);
+                checkNoRefCycles(subClause, selfRefRuleName, visited);
             }
         } else {
             throw new IllegalArgumentException(
                     "Rules should not contain cycles when they are created: " + selfRefRuleName);
         }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     private static int countRuleSelfReferences(Clause clause, String ruleName) {
         if (clause instanceof RuleRef && ((RuleRef) clause).refdRuleName.equals(ruleName)) {
@@ -194,7 +238,6 @@ public class Grammar {
 
     private static int rewriteSelfReferences(Clause clause, Associativity associativity, int numSelfRefsSoFar,
             int numSelfRefs, String selfRefRuleName, String currPrecRuleName, String nextHighestPrecRuleName) {
-        
         if (clause instanceof RuleRef && ((RuleRef) clause).refdRuleName.equals(selfRefRuleName)) {
             // For leftmost self-ref of a left-associative rule, or rightmost self-ref of a right-associative rule,
             // replace self-reference with a reference to the same precedence level; for all other self-references
@@ -247,7 +290,7 @@ public class Grammar {
         // For highest precedence level, next highest precedence wraps back to lowest precedence level:
         //
         // E[5] <- '(' E ')'  =>  E[5] <- '(' (E[5] / E[0]) ')'
-        
+
         // Check there are no duplicate precedence levels
         var precedenceToRule = new TreeMap<Integer, Rule>();
         for (var rule : rules) {
@@ -283,9 +326,7 @@ public class Grammar {
                 // alternative, wrapped in a Longest clause, as described in the paper
                 if (rule.associativity == Associativity.LEFT) {
                     // Duplicate the rule clause and wrap the two copies in Longest.
-                    rule.clause.unregisterRule(rule);
                     rule.clause = new Longest(rule.clause, rule.clause.duplicate());
-                    rule.clause.registerRule(rule);
                     // The leftmost self-reference clause of the first copy will be replaced with a
                     // reference to the current precedence level; the others will be replaced with a reference
                     // to the next-highest precedence level.
@@ -304,15 +345,139 @@ public class Grammar {
             // precedence, which is assumed to be a precedence-breaking pattern (like parentheses), so should not
             // defer back to the lowest precedence level unless the pattern itself matches
             if (precedenceIdx < numPrecedenceLevels - 1) {
-                rule.clause.unregisterRule(rule);
                 rule.clause = new First(rule.clause, new RuleRef(nextHighestPrecRuleName));
-                rule.clause.registerRule(rule);
             }
         }
 
         // Map the bare rule name (without precedence suffix) to the lowest precedence level rule name
         ruleNameToLowestPrecedenceLevelRuleName.put(ruleNameWithoutPrecedence, precedenceOrder.get(0).ruleName);
     }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
+    private static void findReachableClauses(Clause clause, Set<Clause> visited, List<Clause> revTopoOrderOut) {
+        if (visited.add(clause)) {
+            for (var subClause : clause.subClauses) {
+                findReachableClauses(subClause, visited, revTopoOrderOut);
+            }
+            revTopoOrderOut.add(clause);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Recursively call toString() on the clause tree for this {@link Rule}, so that toString() values are cached
+     * before {@link RuleRef} objects are replaced with direct references, and so that shared subclauses are only
+     * matched once.
+     */
+    private static Clause intern(Clause clause, Map<String, Clause> toStringToClause) {
+        // Call toString() on (and intern) subclauses, bottom-up
+        for (int i = 0; i < clause.subClauses.length; i++) {
+            clause.subClauses[i] = intern(clause.subClauses[i], toStringToClause);
+        }
+        // Call toString after recursing to child nodes
+        var toStr = clause.toString();
+
+        // Intern the clause based on the toString value
+        var prevInternedClause = toStringToClause.putIfAbsent(toStr, clause);
+
+        // Return the previously-interned clause, if present, otherwise the clause, if it was just interned
+        return prevInternedClause != null ? prevInternedClause : clause;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
+    private static void resolveRuleRefs(Clause clause, Map<String, Rule> ruleNameToRule,
+            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
+        if (visited.add(clause)) {
+            for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
+                Clause subClause = clause.subClauses[subClauseIdx];
+                if (subClause instanceof RuleRef) {
+                    // Look up rule from name in RuleRef
+                    String refdRuleName = ((RuleRef) subClause).refdRuleName;
+
+                    // Set current clause to a direct reference to the referenced rule
+                    var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
+                    var refdRule = ruleNameToRule
+                            .get(lowestPrecRuleName != null ? lowestPrecRuleName : refdRuleName);
+                    if (refdRule == null) {
+                        throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
+                    }
+                    clause.subClauses[subClauseIdx] = refdRule.clause;
+
+                    // Copy across AST node label, if any
+                    if (refdRule.astNodeLabel != null) {
+                        if (clause.subClauseASTNodeLabels == null) {
+                            // Alloc array for subclause node labels, if not already done
+                            clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
+                        }
+                        if (clause.subClauseASTNodeLabels[subClauseIdx] == null) {
+                            // Update subclause label, if it hasn't already been labeled
+                            clause.subClauseASTNodeLabels[subClauseIdx] = refdRule.astNodeLabel;
+                        }
+                    }
+                    // Stop recursing at RuleRef
+                } else {
+                    // Recurse through subclause tree if subclause was not a RuleRef 
+                    resolveRuleRefs(subClause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName, visited);
+                }
+            }
+        }
+    }
+
+    /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
+    private static void resolveRuleRefs(Rule rule, Map<String, Rule> ruleNameToRule,
+            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
+        if (rule.clause instanceof RuleRef) {
+            // Follow a chain of toplevel RuleRef instances
+            Set<Clause> chainVisited = new HashSet<>();
+            var currClause = rule.clause;
+            while (currClause instanceof RuleRef) {
+                if (!chainVisited.add(currClause)) {
+                    throw new IllegalArgumentException(
+                            "Cycle in " + RuleRef.class.getSimpleName() + " references for rule " + rule.ruleName);
+                }
+                // Look up rule clause from name in RuleRef
+                String refdRuleName = ((RuleRef) currClause).refdRuleName;
+
+                // Referenced rule group is the same as the current rule group, and there is only one level
+                // of precedence for rule group: R <- R
+                if (refdRuleName.equals(rule.ruleName)) {
+                    throw new IllegalArgumentException("Rule references only itself: " + rule.ruleName);
+                }
+
+                // Use lowest precedence level for rule, if rule refers to a rule with multiple precedence levels
+                var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
+                var refdRule = ruleNameToRule.get(lowestPrecRuleName != null ? lowestPrecRuleName : refdRuleName);
+                if (refdRule == null) {
+                    throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
+                }
+
+                // Else Set current clause to the base clause of the referenced rule
+                currClause = refdRule.clause;
+
+                // If the referenced rule creates an AST node, add the AST node label to the rule
+                if (rule.astNodeLabel == null) {
+                    rule.astNodeLabel = refdRule.astNodeLabel;
+                }
+
+                // Record rule name in the rule's toplevel clause, for toString
+                currClause.registerRule(rule);
+            }
+
+            // Overwrite RuleRef with direct reference to the named rule 
+            rule.clause = currClause;
+
+        } else {
+            // Recurse through subclause tree if toplevel clause was not a RuleRef 
+            resolveRuleRefs(rule.clause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName, visited);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     public Rule getRule(String ruleNameWithPrecedence) {
         var rule = ruleNameWithPrecedenceToRule.get(ruleNameWithPrecedence);
