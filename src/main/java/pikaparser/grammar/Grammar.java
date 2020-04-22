@@ -69,7 +69,9 @@ public class Grammar {
                 if (rule.astNodeLabel == null) {
                     rule.astNodeLabel = ((ASTNodeLabel) rule.clause).astNodeLabel;
                 }
+                // Drop the ASTNodeLabel node
                 rule.clause = rule.clause.subClauses[0];
+                rule.clause.registerRule(rule);
             }
 
             // Lift AST node labels from subclauses into subClauseASTNodeLabels array in parent
@@ -192,11 +194,12 @@ public class Grammar {
 
     private static int rewriteSelfReferences(Clause clause, Associativity associativity, int numSelfRefsSoFar,
             int numSelfRefs, String selfRefRuleName, String currPrecRuleName, String nextHighestPrecRuleName) {
+        
         if (clause instanceof RuleRef && ((RuleRef) clause).refdRuleName.equals(selfRefRuleName)) {
             // For leftmost self-ref of a left-associative rule, or rightmost self-ref of a right-associative rule,
             // replace self-reference with a reference to the same precedence level; for all other self-references
             // and when there is no specified precedence, replace self-references with a reference to the next
-            // highest precedence level
+            // highest precedence level.
             var referToCurrPrecLevel = associativity == Associativity.LEFT && numSelfRefsSoFar == 0
                     || associativity == Associativity.RIGHT && numSelfRefsSoFar == numSelfRefs - 1;
             ((RuleRef) clause).refdRuleName = referToCurrPrecLevel ? currPrecRuleName : nextHighestPrecRuleName;
@@ -232,6 +235,19 @@ public class Grammar {
     /** Convert left-recursive rules to use Longest, as described in the paper. */
     private static void handlePrecedence(String ruleNameWithoutPrecedence, List<Rule> rules,
             Map<String, String> ruleNameToLowestPrecedenceLevelRuleName) {
+        // Rewrite rules
+        // 
+        // For all but the highest precedence level:
+        //
+        // E[0] <- E (Op E)+  =>  E[0] <- (E[1] (Op E[1])+) / E[1] 
+        // E[0,L] <- E Op E   =>  E[0] <- ((E[0] Op E[1]) | (E[1] Op E[1])) / E[1] 
+        // E[0,R] <- E Op E   =>  E[0] <- (E[1] Op E[0]) / E[1]
+        // E[3] <- '-' E      =>  E[3] <- '1' (E[3] / E[4])
+        //
+        // For highest precedence level, next highest precedence wraps back to lowest precedence level:
+        //
+        // E[5] <- '(' E ')'  =>  E[5] <- '(' (E[5] / E[0]) ')'
+        
         // Check there are no duplicate precedence levels
         var precedenceToRule = new TreeMap<Integer, Rule>();
         for (var rule : rules) {
@@ -266,8 +282,15 @@ public class Grammar {
                 // For left-associative rules, need to set up a left-recursive alternative and a non-left-recursive
                 // alternative, wrapped in a Longest clause, as described in the paper
                 if (rule.associativity == Associativity.LEFT) {
+                    // Duplicate the rule clause and wrap the two copies in Longest.
+                    rule.clause.unregisterRule(rule);
                     rule.clause = new Longest(rule.clause, rule.clause.duplicate());
+                    rule.clause.registerRule(rule);
+                    // The leftmost self-reference clause of the first copy will be replaced with a
+                    // reference to the current precedence level; the others will be replaced with a reference
+                    // to the next-highest precedence level.
                 }
+                // Rewrite self-references to higher precedence or left- and right-recursive forms
                 rewriteSelfReferences(rule.clause, rule.associativity, 0, numSelfRefs, ruleNameWithoutPrecedence,
                         currPrecRuleName, nextHighestPrecRuleName);
             } else if (numSelfRefs == 1) {
@@ -281,7 +304,9 @@ public class Grammar {
             // precedence, which is assumed to be a precedence-breaking pattern (like parentheses), so should not
             // defer back to the lowest precedence level unless the pattern itself matches
             if (precedenceIdx < numPrecedenceLevels - 1) {
+                rule.clause.unregisterRule(rule);
                 rule.clause = new First(rule.clause, new RuleRef(nextHighestPrecRuleName));
+                rule.clause.registerRule(rule);
             }
         }
 

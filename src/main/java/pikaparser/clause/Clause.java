@@ -43,6 +43,12 @@ public abstract class Clause {
         rules.add(rule);
     }
 
+    public void unregisterRule(Rule rule) {
+        if (rules != null) {
+            rules.remove(rule);
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
