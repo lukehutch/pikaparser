@@ -27,7 +27,7 @@ public class NotFollowedBy extends Clause {
                 // Match lex rules top-down, which avoids creating memo entries for unused terminals.
                 ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, updatedEntries)
                 // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                : memoTable.lookUpMemo(subClauseMemoKey, input, memoKey, updatedEntries);
+                : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey, updatedEntries);
         // Replace any invalid subclause match with a zero-char-consuming match
         if (subClauseMatch == null) {
             return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,

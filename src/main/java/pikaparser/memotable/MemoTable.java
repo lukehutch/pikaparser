@@ -43,7 +43,7 @@ public class MemoTable {
         return memoEntry;
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * If matchDirection == BOTTOM_UP, get the current best match in the memo table without recursing to child
@@ -54,38 +54,41 @@ public class MemoTable {
      * If matchDirection == TOP_DOWN, recurse down through child clauses (standard recursive descent parsing,
      * unmemoized).
      */
-    public Match lookUpMemo(MemoKey memoKey, String input, MemoKey parentMemoKey, Set<MemoEntry> updatedEntries) {
+    public Match lookUpBestMatch(MemoKey memoKey, String input, MemoKey parentMemoKey,
+            Set<MemoEntry> updatedEntries) {
         // Create a new memo entry for non-terminals
         // (Have to add memo entry if terminal does match, since a new match needs to trigger parent clauses.)
         // Get MemoEntry for the MemoKey
         var memoEntry = getOrCreateMemoEntry(memoKey);
 
         // Record a backref to the parent MemoEntry, so that if the subclause match changes, the changes
-        // will propagate to the parent
-        if (Parser.DEBUG) {
-            System.out.println("    Adding backref: " + memoEntry.memoKey + " -> " + parentMemoKey);
+        // will propagate to the parent. Don't need to record a backref if parentMemoKey.startPos is the
+        // same as memoKey.startPos, since that case is already handled by the backRefs mechanism.
+        if (parentMemoKey.startPos != memoKey.startPos) {
+            if (Parser.DEBUG) {
+                System.out.println("    Adding backref: " + memoEntry.memoKey + " -> " + parentMemoKey);
+            }
+            memoEntry.backRefs.add(parentMemoKey);
         }
-        memoEntry.backRefs.add(parentMemoKey);
 
         if (memoEntry.bestMatch != null) {
             // If there is already a memoized best match in the MemoEntry, return it
             return memoEntry.bestMatch;
 
         } else if (memoKey.clause.canMatchZeroChars) {
-            // Special case -- if there is no current best match for the memo, but the subclause always matches,
-            // need to create and memoize a new zero-width match. This will trigger the parent clause to be
-            // reevaluated in the next iteration.
+            // Special case -- if there is no current best match for the memo, but its clause always matches
+            // zero or more characters, return a zero-width match.
             int firstMatchingSubClauseIdx = 0;
             for (int i = 0; i < memoKey.clause.subClauses.length; i++) {
-                // Find index of first subclause that can match zero characters
+                // The matching subclause is the first subclause that can match zero characters
+                // (this works for all PEG operator types)
                 if (memoKey.clause.subClauses[i].canMatchZeroChars) {
                     firstMatchingSubClauseIdx = i;
                     break;
                 }
             }
-            var newMatch = new Match(memoKey, firstMatchingSubClauseIdx, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
-            memoEntry.addNewBestMatch(newMatch, updatedEntries);
-            return newMatch;
+            // Don't need to memoize this match, since it is just a placeholder until the real match state is known
+            return new Match(memoKey, firstMatchingSubClauseIdx, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
         }
 
         // No match was found in the memo table
@@ -128,12 +131,12 @@ public class MemoTable {
      * Add a new terminal {@link Match} to the memo table. Called when the subclauses of a clause match according to
      * the match criteria for the clause.
      */
-    public Match addTerminalMatch(MemoKey memoKey, int terminalLen, Set<MemoEntry> updatedEntries) {
-        return addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, terminalLen, Match.NO_SUBCLAUSE_MATCHES,
+    public Match addTerminalMatch(MemoKey memoKey, int len, Set<MemoEntry> updatedEntries) {
+        return addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, Match.NO_SUBCLAUSE_MATCHES,
                 updatedEntries);
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------------
 
     /**
      * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching

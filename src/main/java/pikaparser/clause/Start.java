@@ -24,6 +24,11 @@ public class Start extends Terminal {
     }
 
     @Override
+    public void testWhetherCanMatchZeroChars() {
+        canMatchZeroChars = true;
+    }
+
+    @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries) {
         // Terminals always add matches to the memo table if they match
@@ -38,7 +43,7 @@ public class Start extends Terminal {
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
     }
-    
+
     @Override
     protected Clause duplicate(Set<Clause> visited) {
         return new Start();

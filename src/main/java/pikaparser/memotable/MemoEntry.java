@@ -3,7 +3,6 @@ package pikaparser.memotable;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
@@ -21,7 +20,7 @@ public class MemoEntry {
      * The match for this MemoEntry added in the current iteration -- this will replace {@link bestMatch} if it is a
      * better match.
      */
-    public PriorityBlockingQueue<Match> newMatches = new PriorityBlockingQueue<>();
+    public Match newBestMatch;
 
     public Set<MemoKey> backRefs = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
 
@@ -38,11 +37,11 @@ public class MemoEntry {
      */
     public void addNewBestMatch(Match newMatch, Set<MemoEntry> updatedEntries) {
         // If the new match is better than the current best match from the previous iteration
-        if (bestMatch == null || newMatch.compareTo(bestMatch) < 0) {
-            // Add the new match. There may be more than one match added in a given iteration -- a zero-width
-            // placeholder match (if canMatchZeroChars is true for the clause), and one or more (equal) "real"
-            // matches with length greater than zero.
-            newMatches.add(newMatch);
+        if ((bestMatch == null || newMatch.compareTo(bestMatch) < 0)) {
+            // Set the new best match (this should only be done once for each memo entry in each
+            // parsing iteration, since activeSet is a set, and addNewBestMatch is called at most 
+            // once per activeSet element).
+            this.newBestMatch = newMatch;
 
             // Mark entry as changed
             updatedEntries.add(this);
@@ -62,7 +61,6 @@ public class MemoEntry {
      */
     public void updateBestMatch(String input, Set<MemoKey> activeSetOut, AtomicInteger numMatchObjectsMemoized) {
         // Get the best new updated match for this MemoEntry, if there is one
-        var newBestMatch = newMatches.peek();
         if (newBestMatch != null) {
             StringBuilder debug = null;
             if (Parser.DEBUG) {
@@ -70,12 +68,12 @@ public class MemoEntry {
                 debug.append("Setting new best match: " + newBestMatch.toStringWithRuleNames() + "\n");
             }
 
-            // Clear newMatches for the next iteration
-            newMatches.clear();
-
-            // Replace bestMatch with newMatch
+            // Replace bestMatch with newBestMatch
             bestMatch = newBestMatch;
             numMatchObjectsMemoized.incrementAndGet();
+
+            // Clear newBestMatch for the next iteration
+            newBestMatch = null;
 
             // Since there was a new best match at this memo entry, any parent clauses that have this clause
             // in the first position (that must match one or more characters) needs to be added to the active set
