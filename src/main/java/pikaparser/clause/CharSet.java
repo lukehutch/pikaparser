@@ -25,10 +25,6 @@ public class CharSet extends Terminal {
         super();
         this.charSet.add(c);
     }
-
-    private CharSet() {
-        super();
-    }
     
     public CharSet(String chars) {
         super();
@@ -104,7 +100,10 @@ public class CharSet extends Terminal {
             return null;
         }
         if (matches(memoKey, input)) {
-            return memoTable.addTerminalMatch(memoKey, /* terminalLen = */ 1, updatedEntries);
+            return matchDirection == MatchDirection.TOP_DOWN //
+                    ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, 1,
+                            Match.NO_SUBCLAUSE_MATCHES)
+            : memoTable.addTerminalMatch(memoKey, /* len = */ 1, updatedEntries);
         }
         if (Parser.DEBUG) {
             System.out.println(
@@ -112,17 +111,6 @@ public class CharSet extends Terminal {
         }
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
-    }
-    
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        var dup = new CharSet();
-        dup.charSet.addAll(charSet);
-        for (var subCharSet : subCharSets) {
-            dup.subCharSets.add((CharSet) subCharSet.duplicate());
-        }
-        dup.invertMatch = invertMatch;
-        return dup;
     }
 
     private void toString(StringBuilder buf) {

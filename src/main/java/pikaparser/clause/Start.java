@@ -34,7 +34,10 @@ public class Start extends Terminal {
         // Terminals always add matches to the memo table if they match
         // Match zero characters at beginning of input
         if (memoKey.startPos == 0) {
-            return memoTable.addTerminalMatch(memoKey, /* terminalLen = */ 0, updatedEntries);
+            return matchDirection == MatchDirection.TOP_DOWN //
+                    ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
+                            Match.NO_SUBCLAUSE_MATCHES)
+                    : memoTable.addTerminalMatch(memoKey, /* len = */ 0, updatedEntries);
         }
         if (Parser.DEBUG) {
             System.out.println(getClass().getSimpleName() + " failed to match at position " + memoKey.startPos
@@ -42,11 +45,6 @@ public class Start extends Terminal {
         }
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
-    }
-
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new Start();
     }
 
     @Override

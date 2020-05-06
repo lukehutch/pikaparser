@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
-import pikaparser.parser.Parser;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
@@ -61,16 +60,6 @@ public class MemoTable {
         // Get MemoEntry for the MemoKey
         var memoEntry = getOrCreateMemoEntry(memoKey);
 
-        // Record a backref to the parent MemoEntry, so that if the subclause match changes, the changes
-        // will propagate to the parent. Don't need to record a backref if parentMemoKey.startPos is the
-        // same as memoKey.startPos, since that case is already handled by the backRefs mechanism.
-        if (parentMemoKey.startPos != memoKey.startPos) {
-            if (Parser.DEBUG) {
-                System.out.println("    Adding backref: " + memoEntry.memoKey + " -> " + parentMemoKey);
-            }
-            memoEntry.backRefs.add(parentMemoKey);
-        }
-
         if (memoEntry.bestMatch != null) {
             // If there is already a memoized best match in the MemoEntry, return it
             return memoEntry.bestMatch;
@@ -95,20 +84,24 @@ public class MemoTable {
         return null;
     }
 
-    /**
-     * Add a new {@link Match} to the memo table. Called when the subclauses of a clause match according to the
-     * match criteria for the clause.
-     */
-    private Match addMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, int len, Match[] subClauseMatches,
-            Set<MemoEntry> updatedEntries) {
+    /** Add a tree of {@link Match} objects to the memo table (used for lex rules that match). */
+    public Match addMatchRecursive(Match match, Set<MemoEntry> updatedEntries) {
+        addMatch(match, updatedEntries);
+        for (int i = 0; i < match.subClauseMatches.length; i++) {
+            addMatchRecursive(match.subClauseMatches[i], updatedEntries);
+        }
+        return match;
+    }
+
+    /** Add a new {@link Match} to the memo table. */
+    public Match addMatch(Match match, Set<MemoEntry> updatedEntries) {
         // Get or create MemoEntry for the MemoKey
-        var memoEntry = getOrCreateMemoEntry(memoKey);
+        var memoEntry = getOrCreateMemoEntry(match.memoKey);
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
-        var newMatch = new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches);
         numMatchObjectsCreated.incrementAndGet();
-        memoEntry.addNewBestMatch(newMatch, updatedEntries);
-        return newMatch;
+        memoEntry.addNewBestMatch(match, updatedEntries);
+        return match;
     }
 
     /**
@@ -124,7 +117,7 @@ public class MemoTable {
                 len += subClauseMatch.len;
             }
         }
-        return addMatch(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches, updatedEntries);
+        return addMatch(new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches), updatedEntries);
     }
 
     /**
@@ -132,7 +125,7 @@ public class MemoTable {
      * the match criteria for the clause.
      */
     public Match addTerminalMatch(MemoKey memoKey, int len, Set<MemoEntry> updatedEntries) {
-        return addMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, Match.NO_SUBCLAUSE_MATCHES,
+        return addMatch(new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, Match.NO_SUBCLAUSE_MATCHES),
                 updatedEntries);
     }
 

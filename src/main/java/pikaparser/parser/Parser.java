@@ -2,6 +2,7 @@ package pikaparser.parser;
 
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.Nothing;
@@ -19,7 +20,7 @@ public class Parser {
 
     public final MemoTable memoTable = new MemoTable();
 
-    private static final boolean PARALLELIZE = false;
+    private static final boolean PARALLELIZE = true;
 
     public static boolean DEBUG = false;
 
@@ -35,7 +36,7 @@ public class Parser {
         this.input = input;
 
         // A set of MemoKey instances for entries that need matching
-        var activeSet = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
+        var priorityQueue = new PriorityBlockingQueue<MemoKey>();
 
         // Memo table entries for which new matches were found in the current iteration
         var updatedEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
@@ -43,7 +44,7 @@ public class Parser {
         // Always match Start at the first position, if any clause depends upon it
         for (var clause : grammar.allClauses) {
             if (clause instanceof Start) {
-                activeSet.add(new MemoKey(clause, 0));
+                priorityQueue.add(new MemoKey(clause, 0));
                 // Because clauses are interned, can stop after one instance of Start clause is found
                 break;
             }
@@ -59,10 +60,14 @@ public class Parser {
                 var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
                         updatedEntries);
                 var matchLen = match != null ? match.len : 0;
-                if (Parser.DEBUG) {
-                    if (match != null) {
+                if (match != null) {
+                    if (Parser.DEBUG) {
                         System.out.println("Lex match: " + match.toStringWithRuleNames());
-                    } else {
+                    }
+                    // Memoize the subtree of matches, once a lex rule matches 
+                    memoTable.addMatchRecursive(match, updatedEntries);
+                } else {
+                    if (Parser.DEBUG) {
                         System.out.println("Lex rule did not match at input position " + startPos);
                     }
                 }
@@ -87,6 +92,7 @@ public class Parser {
                                 if (Parser.DEBUG) {
                                     System.out.println("Initial terminal match: " + match.toStringWithRuleNames());
                                 }
+                                memoTable.addMatch(match, updatedEntries);
                             }
                             if (clause instanceof Start) {
                                 // Only match Start in the first position
@@ -99,24 +105,22 @@ public class Parser {
         // Main parsing loop
         // (need to check if (!updatedEntries.isEmpty()) in the while condition, even though updatedEntries.clear()
         // is called at the end of the loop, because updatedEntries can be populated by lex preprocessing)
-        while (!activeSet.isEmpty() || !updatedEntries.isEmpty()) {
-
-            // For each MemoKey in activeSet, try finding a match, and add matches to newMatches
-            (PARALLELIZE ? activeSet.parallelStream() : activeSet.stream()).forEach(memoKey -> {
-                memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, updatedEntries);
-            });
-
-            // Clear the active set for the next round
-            activeSet.clear();
-
-            // For each MemoEntry in newMatches, find best new match, and if the match 
-            // improves, add the MemoEntry to activeSet for the next round
+        while (!priorityQueue.isEmpty() || !updatedEntries.isEmpty()) {
+            // For each updated entry, replace current best match with new best match, and add parent memo keys
+            // to the priority queue
             (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
-                memoEntry.updateBestMatch(input, activeSet, memoTable.numMatchObjectsMemoized);
+                memoEntry.updateBestMatch(input, priorityQueue, memoTable.numMatchObjectsMemoized);
             });
-
-            // Clear memoEntriesWithNewMatches for the next round
             updatedEntries.clear();
+
+            if (!priorityQueue.isEmpty()) {
+                // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
+                // and from lowest clauses to toplevel clauses), and try matching the MemoKey
+                var memoKey = priorityQueue.remove();
+//                System.out.println(memoKey.toStringWithRuleNames() + "\t"
+//                        + (memoKey.startPos < input.length() ? input.charAt(memoKey.startPos) : "X"));
+                memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, updatedEntries);
+            }
         }
     }
 }

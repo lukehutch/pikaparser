@@ -20,11 +20,6 @@ public class RuleRef extends Clause {
             Set<MemoEntry> updatedEntries) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
-
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new RuleRef(refdRuleName);
-    }
     
     @Override
     public String toString() {

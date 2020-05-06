@@ -16,11 +16,6 @@ public class ASTNodeLabel extends Clause {
     }
 
     @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new ASTNodeLabel(astNodeLabel, subClauses[0].duplicate());
-    }
-
-    @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
             Set<MemoEntry> updatedEntries) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");

@@ -46,11 +46,6 @@ public class FollowedBy extends Clause {
         }
         return null;
     }
-    
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new FollowedBy(duplicateSubClauses(visited));
-    }
 
     @Override
     public String toString() {

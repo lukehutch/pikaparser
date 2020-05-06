@@ -1,8 +1,7 @@
 package pikaparser.memotable;
 
-import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
@@ -21,8 +20,6 @@ public class MemoEntry {
      * better match.
      */
     public Match newBestMatch;
-
-    public Set<MemoKey> backRefs = Collections.newSetFromMap(new ConcurrentHashMap<MemoKey, Boolean>());
 
     public MemoEntry(MemoKey memoKey) {
         this.memoKey = memoKey;
@@ -59,49 +56,37 @@ public class MemoEntry {
      * <p>
      * This method is run in a single thread per {@link MemoEntry}, in the second stage of the iteration.
      */
-    public void updateBestMatch(String input, Set<MemoKey> activeSetOut, AtomicInteger numMatchObjectsMemoized) {
+    public void updateBestMatch(String input, PriorityBlockingQueue<MemoKey> priorityQueue,
+            AtomicInteger numMatchObjectsMemoized) {
         // Get the best new updated match for this MemoEntry, if there is one
         if (newBestMatch != null) {
             StringBuilder debug = null;
-            if (Parser.DEBUG) {
-                debug = new StringBuilder();
-                debug.append("Setting new best match: " + newBestMatch.toStringWithRuleNames() + "\n");
-            }
 
             // Replace bestMatch with newBestMatch
             bestMatch = newBestMatch;
             numMatchObjectsMemoized.incrementAndGet();
 
-            // Clear newBestMatch for the next iteration
-            newBestMatch = null;
-
             // Since there was a new best match at this memo entry, any parent clauses that have this clause
             // in the first position (that must match one or more characters) needs to be added to the active set
+            if (Parser.DEBUG) {
+                debug = new StringBuilder();
+                debug.append("Setting new best match: " + newBestMatch.toStringWithRuleNames() + "\n");
+            }
             for (var seedParentClause : memoKey.clause.seedParentClauses) {
                 MemoKey parentMemoKey = new MemoKey(seedParentClause, bestMatch.memoKey.startPos);
-                activeSetOut.add(parentMemoKey);
+                priorityQueue.add(parentMemoKey);
 
                 if (Parser.DEBUG) {
                     debug.append(
                             "    Following seed parent clause: " + parentMemoKey.toStringWithRuleNames() + "\n");
                 }
             }
-
-            // Any parent clause that depended upon the previous match also needs to be added to the active set
-            for (var backref : backRefs) {
-                activeSetOut.add(backref);
-
-                if (Parser.DEBUG) {
-                    debug.append("    Following backref: " + backref.toStringWithRuleNames() + "\n");
-                }
-            }
-
             if (Parser.DEBUG) {
                 System.out.print(debug);
             }
 
-            // Clear backrefs for the next iteration
-            backRefs.clear();
+            // Clear newBestMatch for the next iteration
+            newBestMatch = null;
         }
     }
 

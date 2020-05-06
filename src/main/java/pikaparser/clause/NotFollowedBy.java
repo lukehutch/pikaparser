@@ -41,11 +41,6 @@ public class NotFollowedBy extends Clause {
     }
 
     @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new NotFollowedBy(duplicateSubClauses(visited));
-    }
-
-    @Override
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();

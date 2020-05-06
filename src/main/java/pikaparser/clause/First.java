@@ -55,11 +55,6 @@ public class First extends Clause {
         }
         return null;
     }
-    
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new First(duplicateSubClauses(visited));
-    }
 
     @Override
     public String toString() {

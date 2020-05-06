@@ -27,11 +27,6 @@ public class Nothing extends Terminal {
         // Don't call MemoTable.addTerminalMatch for Nothing, to limit size of memo table
         return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0, Match.NO_SUBCLAUSE_MATCHES);
     }
-    
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new Nothing();
-    }
 
     @Override
     public String toString() {

@@ -9,7 +9,6 @@ import pikaparser.memotable.MemoTable;
 import pikaparser.parser.Parser;
 
 public class CharSeq extends Terminal {
-
     public final String str;
     public final boolean ignoreCase;
 
@@ -25,7 +24,10 @@ public class CharSeq extends Terminal {
         // Terminals always add matches to the memo table if they match
         if (memoKey.startPos < input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
-            return memoTable.addTerminalMatch(memoKey, /* terminalLen = */ str.length(), updatedEntries);
+            return matchDirection == MatchDirection.TOP_DOWN //
+                    ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, str.length(),
+                            Match.NO_SUBCLAUSE_MATCHES)
+                    : memoTable.addTerminalMatch(memoKey, /* len = */ str.length(), updatedEntries);
         }
         if (Parser.DEBUG) {
             System.out.println(
@@ -33,11 +35,6 @@ public class CharSeq extends Terminal {
         }
         // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
-    }
-    
-    @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new CharSeq(str, ignoreCase);
     }
 
     @Override

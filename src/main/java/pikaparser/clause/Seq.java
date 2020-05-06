@@ -82,11 +82,6 @@ public class Seq extends Clause {
     }
 
     @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new Seq(duplicateSubClauses(visited));
-    }
-
-    @Override
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();

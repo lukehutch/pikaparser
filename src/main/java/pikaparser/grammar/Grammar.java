@@ -11,7 +11,6 @@ import java.util.TreeMap;
 import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
 import pikaparser.clause.First;
-import pikaparser.clause.Longest;
 import pikaparser.clause.RuleRef;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.memotable.Match;
@@ -53,14 +52,16 @@ public class Grammar {
             // they don't have to check for infinite recursion)
             checkNoRefCycles(rule.clause, rule.ruleName, new HashSet<Clause>());
         }
-        List<Rule> allRules = new ArrayList<>(rules);
-        Map<String, String> ruleNameToLowestPrecedenceLevelRuleName = new HashMap<>();
+        var allRules = new ArrayList<>(rules);
+        var ruleNameToLowestPrecedenceLevelRuleName = new HashMap<String, String>();
+        var lowestPrecClauses = new ArrayList<Clause>();
         for (var ent : ruleNameToRules.entrySet()) {
             // Rewrite rules that have multiple precedence levels, as described in the paper
             var rulesWithName = ent.getValue();
             if (rulesWithName.size() > 1) {
                 var ruleName = ent.getKey();
-                handlePrecedence(ruleName, rulesWithName, ruleNameToLowestPrecedenceLevelRuleName);
+                handlePrecedence(ruleName, rulesWithName, ruleNameToLowestPrecedenceLevelRuleName,
+                        lowestPrecClauses);
             }
         }
 
@@ -126,10 +127,33 @@ public class Grammar {
 
         // Find clauses reachable from the toplevel clause, in reverse topological order.
         // Clauses can form a DAG structure, via RuleRef.
-        allClauses = new ArrayList<Clause>();
-        HashSet<Clause> allClausesVisited = new HashSet<Clause>();
+        // Break precedence cycles at highest precedence level, otherwise precedence cycles will be
+        // dropped from the grammar, since we have to find toplevel clauses, and no toplevel clause
+        // can be part of a cycle.
+        var allClausesUnordered = new ArrayList<Clause>();
+        var visited1 = new HashSet<Clause>();
         for (var rule : allRules) {
-            findReachableClauses(rule.clause, allClausesVisited, allClauses);
+            findReachableClauses(rule.clause, visited1, allClausesUnordered);
+        }
+        var topLevelClauses = new HashSet<>(allClausesUnordered);
+        for (var clause : allClausesUnordered) {
+            for (var subClause : clause.subClauses) {
+                topLevelClauses.remove(subClause);
+            }
+        }
+        // Need to seed lowest-prec clauses after toplevel clauses, since they are part of a cycle (otherwise
+        // topLevelClauses will never contain any rules that are part of a precedence hierarchy)
+        var topLevelClausesOrdered = new ArrayList<>(topLevelClauses);
+        topLevelClausesOrdered.addAll(lowestPrecClauses);
+        allClauses = new ArrayList<Clause>();
+        var visited2 = new HashSet<Clause>();
+        for (var topLevelClause : topLevelClausesOrdered) {
+            findReachableClauses(topLevelClause, visited2, allClauses);
+        }
+
+        // Give each clause an index in the topological sort order, bottom-up
+        for (int i = 0; i < allClauses.size(); i++) {
+            allClauses.get(i).clauseIdx = i;
         }
 
         // Find clauses that always match zero or more characters, e.g. FirstMatch(X | Nothing).
@@ -141,6 +165,16 @@ public class Grammar {
         // Find seed parent clauses (in the case of Seq, this depends upon alwaysMatches being set in the prev step)
         for (var clause : allClauses) {
             clause.backlinkToSeedParentClauses();
+        }
+    }
+
+    /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
+    private static void findReachableClauses(Clause clause, HashSet<Clause> visited, List<Clause> revTopoOrderOut) {
+        if (visited.add(clause)) {
+            for (var subClause : clause.subClauses) {
+                findReachableClauses(subClause, visited, revTopoOrderOut);
+            }
+            revTopoOrderOut.add(clause);
         }
     }
 
@@ -224,13 +258,14 @@ public class Grammar {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static int countRuleSelfReferences(Clause clause, String ruleName) {
-        if (clause instanceof RuleRef && ((RuleRef) clause).refdRuleName.equals(ruleName)) {
+    /** Count number of self-references among descendant clauses. */
+    private static int countRuleSelfReferences(Clause clause, String ruleNameWithoutPrecedence) {
+        if (clause instanceof RuleRef && ((RuleRef) clause).refdRuleName.equals(ruleNameWithoutPrecedence)) {
             return 1;
         } else {
             var numSelfRefs = 0;
             for (var subClause : clause.subClauses) {
-                numSelfRefs += countRuleSelfReferences(subClause, ruleName);
+                numSelfRefs += countRuleSelfReferences(subClause, ruleNameWithoutPrecedence);
             }
             return numSelfRefs;
         }
@@ -262,12 +297,14 @@ public class Grammar {
         for (int i = 0; i < clause.subClauses.length; i++) {
             var subClause = clause.subClauses[i];
             if (subClause instanceof RuleRef && ((RuleRef) subClause).refdRuleName.equals(selfRefRuleName)) {
-                clause.subClauses[i] = new Longest(new RuleRef(currPrecRuleName),
+                // E[i] <- X E Y  =>  E[i] <- X (E[i] / E[(i+1)%N]) Y
+                clause.subClauses[i] = new First(new RuleRef(currPrecRuleName),
                         new RuleRef(nextHighestPrecRuleName));
-                // Break out of recursion
+                // Break out of recursion, since there is only one self-reference
                 return true;
             } else {
                 if (rewriteSelfReference(subClause, selfRefRuleName, currPrecRuleName, nextHighestPrecRuleName)) {
+                    // Break out of recursion
                     return true;
                 }
             }
@@ -275,17 +312,19 @@ public class Grammar {
         return false;
     }
 
-    /** Convert left-recursive rules to use Longest, as described in the paper. */
+    /**
+     * Rewrite precedence levels.
+     */
     private static void handlePrecedence(String ruleNameWithoutPrecedence, List<Rule> rules,
-            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName) {
+            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, ArrayList<Clause> lowestPrecClauses) {
         // Rewrite rules
         // 
         // For all but the highest precedence level:
         //
         // E[0] <- E (Op E)+  =>  E[0] <- (E[1] (Op E[1])+) / E[1] 
-        // E[0,L] <- E Op E   =>  E[0] <- ((E[0] Op E[1]) | (E[1] Op E[1])) / E[1] 
+        // E[0,L] <- E Op E   =>  E[0] <- (E[0] Op E[1]) / E[1] 
         // E[0,R] <- E Op E   =>  E[0] <- (E[1] Op E[0]) / E[1]
-        // E[3] <- '-' E      =>  E[3] <- '1' (E[3] / E[4])
+        // E[3] <- '-' E      =>  E[3] <- '-' (E[3] / E[4]) / E[4]
         //
         // For highest precedence level, next highest precedence wraps back to lowest precedence level:
         //
@@ -310,6 +349,17 @@ public class Grammar {
             rule.ruleName += "[" + rule.precedence + "]";
         }
 
+        // Make precedence levels do not just contain a self-reference and nothing else
+        for (int precedenceIdx = 0; precedenceIdx < numPrecedenceLevels; precedenceIdx++) {
+            var rule = precedenceOrder.get(precedenceIdx);
+            if (rule.clause instanceof RuleRef
+                    && ((RuleRef) rule.clause).refdRuleName.equals(ruleNameWithoutPrecedence)) {
+                throw new IllegalArgumentException(
+                        "Rule " + rule.ruleName + " should not contain only a self-reference to "
+                                + ruleNameWithoutPrecedence + " and nothing else");
+            }
+        }
+
         // Transform grammar rule to handle precence
         for (int precedenceIdx = 0; precedenceIdx < numPrecedenceLevels; precedenceIdx++) {
             var rule = precedenceOrder.get(precedenceIdx);
@@ -322,21 +372,12 @@ public class Grammar {
 
             // If a rule has 2+ self-references, and rule is associative, need rewrite rule for associativity
             if (numSelfRefs >= 2) {
-                // For left-associative rules, need to set up a left-recursive alternative and a non-left-recursive
-                // alternative, wrapped in a Longest clause, as described in the paper
-                if (rule.associativity == Associativity.LEFT) {
-                    // Duplicate the rule clause and wrap the two copies in Longest.
-                    rule.clause = new Longest(rule.clause, rule.clause.duplicate());
-                    // The leftmost self-reference clause of the first copy will be replaced with a
-                    // reference to the current precedence level; the others will be replaced with a reference
-                    // to the next-highest precedence level.
-                }
                 // Rewrite self-references to higher precedence or left- and right-recursive forms
                 rewriteSelfReferences(rule.clause, rule.associativity, 0, numSelfRefs, ruleNameWithoutPrecedence,
                         currPrecRuleName, nextHighestPrecRuleName);
             } else if (numSelfRefs == 1) {
-                // If there is only one self-reference, replace it with a single First clause that defers to
-                // the next highest level of precedence if a match fails at the current level of precedence
+                // If there is only one self-reference, replace it with a reference to the next highest
+                // level of precedence
                 rewriteSelfReference(rule.clause, ruleNameWithoutPrecedence, currPrecRuleName,
                         nextHighestPrecRuleName);
             }
@@ -350,19 +391,9 @@ public class Grammar {
         }
 
         // Map the bare rule name (without precedence suffix) to the lowest precedence level rule name
-        ruleNameToLowestPrecedenceLevelRuleName.put(ruleNameWithoutPrecedence, precedenceOrder.get(0).ruleName);
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
-    private static void findReachableClauses(Clause clause, Set<Clause> visited, List<Clause> revTopoOrderOut) {
-        if (visited.add(clause)) {
-            for (var subClause : clause.subClauses) {
-                findReachableClauses(subClause, visited, revTopoOrderOut);
-            }
-            revTopoOrderOut.add(clause);
-        }
+        var lowestPrecRule = precedenceOrder.get(0);
+        ruleNameToLowestPrecedenceLevelRuleName.put(ruleNameWithoutPrecedence, lowestPrecRule.ruleName);
+        lowestPrecClauses.add(lowestPrecRule.clause);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -65,11 +65,6 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    protected Clause duplicate(Set<Clause> visited) {
-        return new OneOrMore(duplicateSubClauses(visited));
-    }
-
-    @Override
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
