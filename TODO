@@ -1,1 +1,15 @@
-TODO: comment code; update GitHub site
+TODO:
+
+- Comment code
+- Update GitHub site
+- Combine subclause refs and subclause AST node labels into a SubClause class
+
+- Replacing OneOrMore with right-recursive form, for efficiency:
+  - X_tail <- X X_tail? == X (X_tail / ())
+  - OneOrMore:  X+ => X X_tail
+  - ZeroOrMore: X* => X_tail?
+  P <- X+  =>  P <- X (P / ());
+  P <- X*  =>  P <- (X (P / ())) / ();
+  
+
+- precedence climbing becomes precedence descent, for bottom-up parsing 

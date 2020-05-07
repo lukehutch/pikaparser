@@ -17,6 +17,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoTable;
 
 public class Grammar {
+    public final List<Rule> allRules;
     public final List<Clause> allClauses;
     public Clause lexClause;
     public Map<String, Rule> ruleNameWithPrecedenceToRule;
@@ -52,16 +53,14 @@ public class Grammar {
             // they don't have to check for infinite recursion)
             checkNoRefCycles(rule.clause, rule.ruleName, new HashSet<Clause>());
         }
-        var allRules = new ArrayList<>(rules);
+        allRules = new ArrayList<>(rules);
         var ruleNameToLowestPrecedenceLevelRuleName = new HashMap<String, String>();
-        var lowestPrecClauses = new ArrayList<Clause>();
         for (var ent : ruleNameToRules.entrySet()) {
             // Rewrite rules that have multiple precedence levels, as described in the paper
             var rulesWithName = ent.getValue();
             if (rulesWithName.size() > 1) {
                 var ruleName = ent.getKey();
-                handlePrecedence(ruleName, rulesWithName, ruleNameToLowestPrecedenceLevelRuleName,
-                        lowestPrecClauses);
+                handlePrecedence(ruleName, rulesWithName, ruleNameToLowestPrecedenceLevelRuleName);
             }
         }
 
@@ -108,10 +107,10 @@ public class Grammar {
         }
 
         // Resolve each RuleRef into a direct reference to the referenced clause
-        Set<Clause> ruleClausesVisited = new HashSet<>();
+        Set<Clause> clausesVisitedResolveRuleRefs = new HashSet<>();
         for (var rule : allRules) {
             resolveRuleRefs(rule, ruleNameWithPrecedenceToRule, ruleNameToLowestPrecedenceLevelRuleName,
-                    ruleClausesVisited);
+                    clausesVisitedResolveRuleRefs);
         }
 
         if (lexRuleName != null) {
@@ -125,11 +124,7 @@ public class Grammar {
             lexClause = lexRule.clause;
         }
 
-        // Find clauses reachable from the toplevel clause, in reverse topological order.
-        // Clauses can form a DAG structure, via RuleRef.
-        // Break precedence cycles at highest precedence level, otherwise precedence cycles will be
-        // dropped from the grammar, since we have to find toplevel clauses, and no toplevel clause
-        // can be part of a cycle.
+        // Find toplevel clauses (clauses that are not a subclause of any other clause)
         var allClausesUnordered = new ArrayList<Clause>();
         var visited1 = new HashSet<Clause>();
         for (var rule : allRules) {
@@ -141,10 +136,25 @@ public class Grammar {
                 topLevelClauses.remove(subClause);
             }
         }
-        // Need to seed lowest-prec clauses after toplevel clauses, since they are part of a cycle (otherwise
-        // topLevelClauses will never contain any rules that are part of a precedence hierarchy)
         var topLevelClausesOrdered = new ArrayList<>(topLevelClauses);
-        topLevelClausesOrdered.addAll(lowestPrecClauses);
+
+        // Add to the end of the list of toplevel clauses the set of all "head clauses" of cycles,
+        // which is the first clause reached in a path around a grammar cycle. These clauses have
+        // to be added as "toplevel nodes" for the topological sort, otherwise the topological sort
+        // may drop all clauses in a precedence hierarchy, e.g. if the grammar consists of only a
+        // single precedence hierarchy. (In this case, there are no toplevel clauses.)
+        var discovered = new HashSet<Clause>();
+        var finished = new HashSet<Clause>();
+        var cycleHeadClauses = new HashSet<Clause>();
+        for (var clause : topLevelClauses) {
+            findCycleHeadClauses(clause, discovered, finished, cycleHeadClauses);
+        }
+        for (var rule : allRules) {
+            findCycleHeadClauses(rule.clause, discovered, finished, cycleHeadClauses);
+        }
+        topLevelClausesOrdered.addAll(cycleHeadClauses);
+
+        // Topologically sort all clauses into bottom-up order
         allClauses = new ArrayList<Clause>();
         var visited2 = new HashSet<Clause>();
         for (var topLevelClause : topLevelClausesOrdered) {
@@ -157,7 +167,7 @@ public class Grammar {
         }
 
         // Find clauses that always match zero or more characters, e.g. FirstMatch(X | Nothing).
-        // allClauses is in reverse topological order, i.e. bottom-up
+        // Importantly, allClauses is in reverse topological order, i.e. traversal is bottom-up.
         for (Clause clause : allClauses) {
             clause.testWhetherCanMatchZeroChars();
         }
@@ -212,6 +222,26 @@ public class Grammar {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Find the {@link Clause} nodes that complete a cycle in the grammar. */
+    private static void findCycleHeadClauses(Clause clause, Set<Clause> discovered, Set<Clause> finished,
+            Set<Clause> cycleHeadClausesOut) {
+        if (clause instanceof RuleRef) {
+            throw new IllegalArgumentException(
+                    "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
+        }
+        discovered.add(clause);
+        for (var subClause : clause.subClauses) {
+            if (discovered.contains(subClause)) {
+                // Reached a cycle
+                cycleHeadClausesOut.add(subClause);
+            } else if (!finished.contains(subClause)) {
+                findCycleHeadClauses(subClause, discovered, finished, cycleHeadClausesOut);
+            }
+        }
+        discovered.remove(clause);
+        finished.add(clause);
+    }
+
     /**
      * Check a {@link Clause} tree does not contain any cycles after RuleRef instances have been replaced by direct
      * clause references (needed to ensure top-down lexing terminates, since lexing is not memoized).
@@ -236,13 +266,7 @@ public class Grammar {
 
     /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lex). */
     private static void checkNoDAGCycles(Clause clause) {
-        var discovered = new HashSet<Clause>();
-        var finished = new HashSet<Clause>();
-        for (var subClause : clause.subClauses) {
-            if (!discovered.contains(subClause) && !finished.contains(subClause)) {
-                checkNoDAGCycles(subClause, discovered, finished);
-            }
-        }
+        checkNoDAGCycles(clause, new HashSet<Clause>(), new HashSet<Clause>());
     }
 
     private static void checkNoRefCycles(Clause clause, String selfRefRuleName, Set<Clause> visited) {
@@ -316,7 +340,7 @@ public class Grammar {
      * Rewrite precedence levels.
      */
     private static void handlePrecedence(String ruleNameWithoutPrecedence, List<Rule> rules,
-            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, ArrayList<Clause> lowestPrecClauses) {
+            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName) {
         // Rewrite rules
         // 
         // For all but the highest precedence level:
@@ -393,7 +417,6 @@ public class Grammar {
         // Map the bare rule name (without precedence suffix) to the lowest precedence level rule name
         var lowestPrecRule = precedenceOrder.get(0);
         ruleNameToLowestPrecedenceLevelRuleName.put(ruleNameWithoutPrecedence, lowestPrecRule.ruleName);
-        lowestPrecClauses.add(lowestPrecRule.clause);
     }
 
     // -------------------------------------------------------------------------------------------------------------

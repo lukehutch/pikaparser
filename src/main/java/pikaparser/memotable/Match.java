@@ -1,5 +1,7 @@
 package pikaparser.memotable;
 
+import java.util.ArrayList;
+
 import pikaparser.clause.Clause;
 import pikaparser.clause.First;
 import pikaparser.clause.OneOrMore;
@@ -87,9 +89,25 @@ public class Match implements Comparable<Match> {
     }
 
     private void toAST(ASTNode parent, String input) {
+        Match[] subClauseMatchesToUse;
+        if (memoKey.clause instanceof OneOrMore) {
+            // Flatten right-recursive structure of OneOrMore parse tree
+            var subClauseMatchesToUseList = new ArrayList<Match>();
+            for (Match curr = this;; curr = curr.subClauseMatches[1]) {
+                subClauseMatchesToUseList.add(curr.subClauseMatches[0]);
+                if (curr.subClauseMatches.length == 1) {
+                    // Reached end of right-recursive matches
+                    break;
+                }
+            }
+            subClauseMatchesToUse = subClauseMatchesToUseList.toArray(new Match[0]);
+        } else {
+            // For other clause types, just recurse to subclause matches
+            subClauseMatchesToUse = subClauseMatches;
+        }
         // Recurse to descendants
-        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatches.length; subClauseMatchIdx++) {
-            var subClauseMatch = subClauseMatches[subClauseMatchIdx];
+        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
+            var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
             var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
             ASTNode parentOfSubclause = parent;
             if (subClauseASTNodeLabel != null) {
@@ -121,13 +139,30 @@ public class Match implements Comparable<Match> {
         System.out.println(indentStr + (isLastChild ? "└─" : "├─")
                 + (astNodeLabel == null ? "" : astNodeLabel + ":(") + memoKey.toStringWithRuleNames() + "+" + len
                 + (astNodeLabel == null ? "" : ")") + " : \"" + inp + "\"");
-        if (subClauseMatches != null) {
-            for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatches.length; subClauseMatchIdx++) {
-                var subClauseMatch = subClauseMatches[subClauseMatchIdx];
-                var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
-                subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
-                        subClauseMatchIdx == subClauseMatches.length - 1);
+
+        Match[] subClauseMatchesToUse;
+        if (memoKey.clause instanceof OneOrMore) {
+            // Flatten right-recursive structure of OneOrMore parse tree
+            var subClauseMatchesToUseList = new ArrayList<Match>();
+            for (Match curr = this;; curr = curr.subClauseMatches[1]) {
+                subClauseMatchesToUseList.add(curr.subClauseMatches[0]);
+                if (curr.subClauseMatches.length == 1) {
+                    // Reached end of right-recursive matches
+                    break;
+                }
             }
+            subClauseMatchesToUse = subClauseMatchesToUseList.toArray(new Match[0]);
+        } else {
+            // For other clause types, just recurse to subclause matches
+            subClauseMatchesToUse = subClauseMatches;
+        }
+
+        // Recurse to descendants
+        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
+            var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
+            var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
+            subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
+                    subClauseMatchIdx == subClauseMatchesToUse.length - 1);
         }
     }
 
