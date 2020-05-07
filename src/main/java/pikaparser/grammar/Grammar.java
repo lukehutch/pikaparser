@@ -55,12 +55,14 @@ public class Grammar {
         }
         allRules = new ArrayList<>(rules);
         var ruleNameToLowestPrecedenceLevelRuleName = new HashMap<String, String>();
+        var lowestPrecedenceClauses = new ArrayList<Clause>();
         for (var ent : ruleNameToRules.entrySet()) {
             // Rewrite rules that have multiple precedence levels, as described in the paper
             var rulesWithName = ent.getValue();
             if (rulesWithName.size() > 1) {
                 var ruleName = ent.getKey();
-                handlePrecedence(ruleName, rulesWithName, ruleNameToLowestPrecedenceLevelRuleName);
+                handlePrecedence(ruleName, rulesWithName, lowestPrecedenceClauses,
+                        ruleNameToLowestPrecedenceLevelRuleName);
             }
         }
 
@@ -138,11 +140,13 @@ public class Grammar {
         }
         var topLevelClausesOrdered = new ArrayList<>(topLevelClauses);
 
-        // Add to the end of the list of toplevel clauses the set of all "head clauses" of cycles,
-        // which is the first clause reached in a path around a grammar cycle. These clauses have
-        // to be added as "toplevel nodes" for the topological sort, otherwise the topological sort
-        // may drop all clauses in a precedence hierarchy, e.g. if the grammar consists of only a
-        // single precedence hierarchy. (In this case, there are no toplevel clauses.)
+        // Add to the end of the list of toplevel clauses all lowest-precedence clauses, since
+        // top-down precedence climbing should start at each lowest-precedence clause
+        topLevelClausesOrdered.addAll(lowestPrecedenceClauses);
+
+        // Finally, in case there are cycles in the grammar that are not part of a precedence
+        // hierarchy, add to the end of the list of toplevel clauses the set of all "head clauses"
+        // of cycles, which is the first clause reached in a path around a grammar cycle.
         var discovered = new HashSet<Clause>();
         var finished = new HashSet<Clause>();
         var cycleHeadClauses = new HashSet<Clause>();
@@ -340,6 +344,7 @@ public class Grammar {
      * Rewrite precedence levels.
      */
     private static void handlePrecedence(String ruleNameWithoutPrecedence, List<Rule> rules,
+            ArrayList<Clause> lowestPrecedenceClauses,
             Map<String, String> ruleNameToLowestPrecedenceLevelRuleName) {
         // Rewrite rules
         // 
@@ -416,6 +421,7 @@ public class Grammar {
 
         // Map the bare rule name (without precedence suffix) to the lowest precedence level rule name
         var lowestPrecRule = precedenceOrder.get(0);
+        lowestPrecedenceClauses.add(lowestPrecRule.clause);
         ruleNameToLowestPrecedenceLevelRuleName.put(ruleNameWithoutPrecedence, lowestPrecRule.ruleName);
     }
 
