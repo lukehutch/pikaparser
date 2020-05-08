@@ -1,11 +1,8 @@
 package pikaparser.clause;
 
-import java.util.concurrent.PriorityBlockingQueue;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
-import pikaparser.parser.Parser;
 
 public class Longest extends Clause {
 
@@ -28,8 +25,7 @@ public class Longest extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
         Match longestSubClauseMatch = null;
         int longestSubClauseMatchIdx = 0;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
@@ -37,7 +33,7 @@ public class Longest extends Clause {
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, priorityQueue)
+                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
                     : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
             if (subClauseMatch != null
@@ -47,15 +43,10 @@ public class Longest extends Clause {
             }
         }
         if (longestSubClauseMatch != null) {
-            return memoTable.addNonTerminalMatch(memoKey, longestSubClauseMatchIdx,
-                    new Match[] { longestSubClauseMatch }, priorityQueue);
-        } else {
-            if (Parser.DEBUG) {
-                System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": "
-                        + memoKey.toStringWithRuleNames());
-            }
-            return null;
+            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ longestSubClauseMatchIdx,
+                    /* len = */ longestSubClauseMatch.len, new Match[] { longestSubClauseMatch });
         }
+        return null;
     }
 
     @Override

@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
@@ -25,7 +24,7 @@ public class CharSet extends Terminal {
         super();
         this.charSet.add(c);
     }
-    
+
     public CharSet(String chars) {
         super();
         for (int i = 0; i < chars.length(); i++) {
@@ -71,7 +70,10 @@ public class CharSet extends Terminal {
         return this;
     }
 
-    private boolean matches(MemoKey memoKey, String input) {
+    private boolean inputMatches(MemoKey memoKey, String input) {
+        if (memoKey.startPos >= input.length()) {
+            return false;
+        }
         boolean matches = !charSet.isEmpty() //
                 && (invertMatch ^ charSet.contains(input.charAt(memoKey.startPos)));
         if (matches) {
@@ -81,7 +83,7 @@ public class CharSet extends Terminal {
             // SubCharSets may be inverted, so need to test each individually for efficiency,
             // rather than producing a large Set<Character> for all chars of an inverted CharSet
             for (CharSet subCharSet : subCharSets) {
-                if (subCharSet.matches(memoKey, input)) {
+                if (subCharSet.inputMatches(memoKey, input)) {
                     return true;
                 }
             }
@@ -94,22 +96,12 @@ public class CharSet extends Terminal {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
-        if (memoKey.startPos >= input.length()) {
-            return null;
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
+        if (inputMatches(memoKey, input)) {
+            // Terminals are not memoized (i.e. don't look in the memo table)
+            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1,
+                    Match.NO_SUBCLAUSE_MATCHES);
         }
-        if (matches(memoKey, input)) {
-            return matchDirection == MatchDirection.TOP_DOWN //
-                    ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, 1,
-                            Match.NO_SUBCLAUSE_MATCHES)
-            : memoTable.addTerminalMatch(memoKey, /* len = */ 1, priorityQueue);
-        }
-        if (Parser.DEBUG) {
-            System.out.println(
-                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
-        }
-        // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
     }
 

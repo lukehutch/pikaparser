@@ -49,8 +49,7 @@ public class Parser {
             for (int startPos = 0; startPos < input.length();) {
                 var memoKey = new MemoKey(grammar.lexClause, startPos);
                 // Match the lex rule top-down, populating the memo table for subclause matches
-                var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
-                        priorityQueue);
+                var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input);
                 var matchLen = match != null ? match.len : 0;
                 if (match != null) {
                     if (Parser.DEBUG) {
@@ -78,8 +77,7 @@ public class Parser {
                         // Terminals are matched top down
                         for (int startPos = 0; startPos < input.length(); startPos++) {
                             var memoKey = new MemoKey(clause, startPos);
-                            var match = clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
-                                    priorityQueue);
+                            var match = clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input);
                             if (match != null) {
                                 if (Parser.DEBUG) {
                                     System.out.println("Initial terminal match: " + match.toStringWithRuleNames());
@@ -101,7 +99,19 @@ public class Parser {
             // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
             // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
             var memoKey = priorityQueue.remove();
-            memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, priorityQueue);
+            var match = memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input);
+            if (match != null) {
+                // Memoize any new match, and schedule parent clauses for evaluation in the priority queue
+                memoTable.addMatch(match, priorityQueue);
+                
+                if (Parser.DEBUG) {
+                    System.out.println(
+                            "Matched: " + memoKey.toStringWithRuleNames());
+                }
+            } else if (Parser.DEBUG) {
+                System.out.println(
+                        "Failed to match: " + memoKey.toStringWithRuleNames());
+            }
         }
     }
 }

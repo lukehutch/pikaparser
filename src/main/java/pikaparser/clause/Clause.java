@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.stream.Collectors;
 
 import pikaparser.grammar.Rule;
@@ -29,7 +28,7 @@ public abstract class Clause {
 
     /** Index in the topological sort order of clauses, bottom-up. */
     public int clauseIdx;
-    
+
     public String toStringCached;
     public String toStringWithRuleNameCached;
 
@@ -90,9 +89,11 @@ public abstract class Clause {
         BOTTOM_UP, TOP_DOWN;
     }
 
-    /** Match a clause bottom-up at a given start position. */
-    public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue);
+    /**
+     * Match a clause top-down (recursively) or bottom-up (looking in the memo-table just one level top-down) at a
+     * given start position.
+     */
+    public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input);
 
     // -------------------------------------------------------------------------------------------------------------
 

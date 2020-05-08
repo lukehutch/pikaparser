@@ -103,31 +103,6 @@ public class MemoTable {
         return match;
     }
 
-    /**
-     * Add a new non-terminal {@link Match} to the memo table. Called when the subclauses of a clause match
-     * according to the match criteria for the clause.
-     */
-    public Match addNonTerminalMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, Match[] subClauseMatches,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
-        // Find total length of all subclause matches
-        var len = 0;
-        if (subClauseMatches.length > 0) {
-            for (Match subClauseMatch : subClauseMatches) {
-                len += subClauseMatch.len;
-            }
-        }
-        return addMatch(new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches), priorityQueue);
-    }
-
-    /**
-     * Add a new terminal {@link Match} to the memo table. Called when the subclauses of a clause match according to
-     * the match criteria for the clause.
-     */
-    public Match addTerminalMatch(MemoKey memoKey, int len, PriorityBlockingQueue<MemoKey> priorityQueue) {
-        return addMatch(new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, Match.NO_SUBCLAUSE_MATCHES),
-                priorityQueue);
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**

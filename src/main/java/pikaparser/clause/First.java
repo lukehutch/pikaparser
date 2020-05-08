@@ -1,11 +1,8 @@
 package pikaparser.clause;
 
-import java.util.concurrent.PriorityBlockingQueue;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
-import pikaparser.parser.Parser;
 
 public class First extends Clause {
 
@@ -33,24 +30,19 @@ public class First extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
             var subClause = subClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, priorityQueue)
+                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
                     : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
             if (subClauseMatch != null) {
-                return memoTable.addNonTerminalMatch(memoKey, subClauseIdx, new Match[] { subClauseMatch },
-                        priorityQueue);
+                return new Match(memoKey, /* firstMatchingSubclauseIdx = */ subClauseIdx,
+                        /* len = */ subClauseMatch.len, new Match[] { subClauseMatch });
             }
-        }
-        if (Parser.DEBUG) {
-            System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": "
-                    + memoKey.toStringWithRuleNames());
         }
         return null;
     }

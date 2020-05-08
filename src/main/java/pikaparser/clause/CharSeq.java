@@ -1,11 +1,8 @@
 package pikaparser.clause;
 
-import java.util.concurrent.PriorityBlockingQueue;
-
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
-import pikaparser.parser.Parser;
 
 public class CharSeq extends Terminal {
     public final String str;
@@ -18,21 +15,13 @@ public class CharSeq extends Terminal {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
-        // Terminals always add matches to the memo table if they match
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
         if (memoKey.startPos < input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
-            return matchDirection == MatchDirection.TOP_DOWN //
-                    ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, str.length(),
-                            Match.NO_SUBCLAUSE_MATCHES)
-                    : memoTable.addTerminalMatch(memoKey, /* len = */ str.length(), priorityQueue);
+            // Terminals are not memoized (i.e. don't look in the memo table)
+            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ str.length(),
+                    Match.NO_SUBCLAUSE_MATCHES);
         }
-        if (Parser.DEBUG) {
-            System.out.println(
-                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
-        }
-        // Don't call MemoTable.addTerminalMatch for terminals that don't match, to limit size of memo table
         return null;
     }
 

@@ -2,12 +2,10 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
-import pikaparser.parser.Parser;
 
 public class Seq extends Clause {
 
@@ -50,8 +48,7 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
+    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
         Match[] subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
@@ -59,15 +56,11 @@ public class Seq extends Clause {
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, priorityQueue)
+                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
                     : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
-                if (Parser.DEBUG) {
-                    System.out.println("Failed to match at subClauseIdx " + subClauseIdx + ", position "
-                            + currStartPos + ": " + memoKey.toStringWithRuleNames());
-                }
                 return null;
             }
             if (subClauseMatches == null) {
@@ -76,8 +69,8 @@ public class Seq extends Clause {
             subClauseMatches[subClauseIdx] = subClauseMatch;
             currStartPos += subClauseMatch.len;
         }
-        return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches,
-                priorityQueue);
+        return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ currStartPos - memoKey.startPos,
+                subClauseMatches);
     }
 
     @Override
