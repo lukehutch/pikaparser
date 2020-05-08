@@ -388,7 +388,7 @@ public class MetaGrammar {
             ParserInfo.printSyntaxErrors(syntaxErrors);
         }
 
-        var topLevelMatches = grammar.getNonOverlappingMatches(memoTable, GRAMMAR);
+        var topLevelMatches = grammar.getNonOverlappingMatches(GRAMMAR, memoTable);
         if (topLevelMatches.isEmpty()) {
             throw new IllegalArgumentException("Toplevel rule \"" + GRAMMAR + "\" did not match");
         } else if (topLevelMatches.size() > 1) {

@@ -1,24 +1,24 @@
 package pikaparser.grammar;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.Map.Entry;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
+import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.First;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.RuleRef;
 import pikaparser.clause.Start;
 import pikaparser.clause.Terminal;
-import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
@@ -561,34 +561,18 @@ public class Grammar {
      * Get the {@link Match} entries for all nonoverlapping matches of the named rule, obtained by greedily matching
      * from the beginning of the string, then looking for the next match after the end of the current match.
      */
-    public List<Match> getNonOverlappingMatches(MemoTable memoTable, String ruleName, int precedence) {
+    public List<Match> getNonOverlappingMatches(String ruleName, MemoTable memoTable) {
         var clause = getRule(ruleName).clause;
         return memoTable.getNonOverlappingMatches(clause);
     }
 
     /**
-     * Get the {@link Match} entries for all nonoverlapping matches of the named rule, obtained by greedily matching
-     * from the beginning of the string, then looking for the next match after the end of the current match.
-     */
-    public List<Match> getNonOverlappingMatches(MemoTable memoTable, String ruleName) {
-        return getNonOverlappingMatches(memoTable, ruleName, 0);
-    }
-
-    /**
      * Get the {@link Match} entries for all postions where a match was queried for the named rule, but there was no
      * match.
      */
-    public List<Integer> getNonMatches(MemoTable memoTable, String ruleName, int precedence) {
+    public List<Integer> getNonMatches(String ruleName, MemoTable memoTable) {
         var clause = getRule(ruleName).clause;
         return memoTable.getNonMatchPositions(clause);
-    }
-
-    /**
-     * Get the {@link Match} entries for all postions where a match was queried for the named rule, but there was no
-     * match.
-     */
-    public List<Integer> getNonMatches(MemoTable memoTable, String ruleName) {
-        return getNonMatches(memoTable, ruleName, 0);
     }
 
     private static void addRange(int startPos, int endPos, String input,
@@ -633,8 +617,11 @@ public class Grammar {
         // Find the range of characters spanned by matches for each of the coverageRuleNames
         var parsedRanges = new TreeMap<Integer, Entry<Integer, String>>();
         for (var coverageRuleName : syntaxCoverageRuleNames) {
-            for (var match : getNonOverlappingMatches(memoTable, coverageRuleName)) {
-                addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input, parsedRanges);
+            var rule = ruleNameWithPrecedenceToRule.get(coverageRuleName);
+            if (rule != null) {
+                for (var match : memoTable.getNonOverlappingMatches(rule.clause)) {
+                    addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input, parsedRanges);
+                }
             }
         }
         // Find the inverse of the spanned ranges -- these are the syntax errors
