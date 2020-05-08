@@ -8,7 +8,7 @@ import pikaparser.clause.OneOrMore;
 import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
-public class Match implements Comparable<Match> {
+public class Match {
     /** The {@link MemoKey}. */
     public final MemoKey memoKey;
 
@@ -35,41 +35,20 @@ public class Match implements Comparable<Match> {
     }
 
     /**
-     * Compare this {@link Match} to another {@link Match} of the same {@link Clause} type.
+     * Compare this {@link Match} to another {@link Match} of the same {@link Clause} type and start position.
      * 
-     * @return a negative value if this {@link Match} is a better match than the other {@link Match}, or a positive
-     *         value if the other {@link Match} is a better match than this one.
+     * @return true if this {@link Match} is a better match than the other {@link Match}.
      */
-    @Override
-    public int compareTo(Match o) {
-        if (o == this) {
-            // Fast path to stop recursive comparison when subclause matches are identical
-            return 0;
+    public boolean isBetterThan(Match other) {
+        if (other == this) {
+            return false;
         }
 
-        // An earlier subclause match in a First clause wins over a later match
-        if (this.memoKey.clause instanceof First) {
-            var diff0 = this.firstMatchingSubClauseIdx - o.firstMatchingSubClauseIdx;
-            if (diff0 != 0) {
-                return diff0;
-            }
-        }
-
-        // A longer match (i.e. a match that spans more characters in the input) wins over a shorter match
-        var diff1 = o.len - this.len;
-        if (diff1 != 0) {
-            return diff1;
-        }
-        var minSubclauses = Math.min(this.subClauseMatches.length, o.subClauseMatches.length);
-        for (int i = 0; i < minSubclauses; i++) {
-            var diff2 = o.subClauseMatches[i].len - this.subClauseMatches[i].len;
-            if (diff2 != 0) {
-                return diff2;
-            }
-        }
-
-        // A longer list of OneOrMore subclause matches wins over a shorter list
-        return o.subClauseMatches.length - this.subClauseMatches.length;
+        // An earlier subclause match in a First clause is better than a later subclause match
+        // A longer match (i.e. a match that spans more characters in the input) is better than a shorter match
+        return (memoKey.clause instanceof First // 
+                && this.firstMatchingSubClauseIdx < other.firstMatchingSubClauseIdx) //
+                || this.len > other.len;
     }
 
     public String getText(String input) {

@@ -7,13 +7,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map.Entry;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
 import pikaparser.clause.First;
+import pikaparser.clause.Nothing;
 import pikaparser.clause.RuleRef;
+import pikaparser.clause.Start;
+import pikaparser.clause.Terminal;
+import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public class Grammar {
@@ -21,6 +29,8 @@ public class Grammar {
     public final List<Clause> allClauses;
     public Clause lexClause;
     public Map<String, Rule> ruleNameWithPrecedenceToRule;
+
+    public static boolean DEBUG = false;
 
     public Grammar(List<Rule> rules) {
         this(/* lexRuleName = */ null, rules);
@@ -579,5 +589,165 @@ public class Grammar {
      */
     public List<Integer> getNonMatches(MemoTable memoTable, String ruleName) {
         return getNonMatches(memoTable, ruleName, 0);
+    }
+
+    private static void addRange(int startPos, int endPos, String input,
+            TreeMap<Integer, Entry<Integer, String>> ranges) {
+        // Try merging new range with floor entry in TreeMap
+        var floorEntry = ranges.floorEntry(startPos);
+        var floorEntryStart = floorEntry == null ? null : floorEntry.getKey();
+        var floorEntryEnd = floorEntry == null ? null : floorEntry.getValue().getKey();
+        int newEntryRangeStart;
+        int newEntryRangeEnd;
+        if (floorEntryStart == null || floorEntryEnd < startPos) {
+            // There is no startFloorEntry, or startFloorEntry ends before startPos -- add a new entry
+            newEntryRangeStart = startPos;
+            newEntryRangeEnd = endPos;
+        } else {
+            // startFloorEntry overlaps with range -- extend startFloorEntry
+            newEntryRangeStart = floorEntryStart;
+            newEntryRangeEnd = Math.max(floorEntryEnd, endPos);
+        }
+        var newEntryMatchStr = input.substring(startPos, endPos);
+        ranges.put(newEntryRangeStart, new SimpleEntry<>(newEntryRangeEnd, newEntryMatchStr));
+
+        // Try merging new range with the following entry in TreeMap
+        var higherEntry = ranges.higherEntry(newEntryRangeStart);
+        var higherEntryStart = higherEntry == null ? null : higherEntry.getKey();
+        var higherEntryEnd = higherEntry == null ? null : higherEntry.getValue().getKey();
+        if (higherEntryStart != null && higherEntryStart <= newEntryRangeEnd) {
+            // Expanded-range entry overlaps with the following entry -- collapse them into one
+            ranges.remove(higherEntryStart);
+            var expandedRangeEnd = Math.max(newEntryRangeEnd, higherEntryEnd);
+            var expandedRangeMatchStr = input.substring(newEntryRangeStart, expandedRangeEnd);
+            ranges.put(newEntryRangeStart, new SimpleEntry<>(expandedRangeEnd, expandedRangeMatchStr));
+        }
+    }
+
+    /**
+     * Get any syntax errors in the parse, as a map from start position to a tuple, (end position, span of input
+     * string between start position and end position).
+     */
+    public TreeMap<Integer, Entry<Integer, String>> getSyntaxErrors(MemoTable memoTable, String input,
+            String... syntaxCoverageRuleNames) {
+        // Find the range of characters spanned by matches for each of the coverageRuleNames
+        var parsedRanges = new TreeMap<Integer, Entry<Integer, String>>();
+        for (var coverageRuleName : syntaxCoverageRuleNames) {
+            for (var match : getNonOverlappingMatches(memoTable, coverageRuleName)) {
+                addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input, parsedRanges);
+            }
+        }
+        // Find the inverse of the spanned ranges -- these are the syntax errors
+        var syntaxErrorRanges = new TreeMap<Integer, Entry<Integer, String>>();
+        int prevEndPos = 0;
+        for (var ent : parsedRanges.entrySet()) {
+            var currStartPos = ent.getKey();
+            var currEndPos = ent.getValue().getKey();
+            if (currStartPos > prevEndPos) {
+                syntaxErrorRanges.put(prevEndPos,
+                        new SimpleEntry<>(currStartPos, input.substring(prevEndPos, currStartPos)));
+            }
+            prevEndPos = currEndPos;
+        }
+        if (!parsedRanges.isEmpty()) {
+            var lastEnt = parsedRanges.lastEntry();
+            var lastEntEndPos = lastEnt.getValue().getKey();
+            if (lastEntEndPos < input.length()) {
+                // Add final syntax error range, if there is one
+                syntaxErrorRanges.put(lastEntEndPos,
+                        new SimpleEntry<>(input.length(), input.substring(lastEntEndPos, input.length())));
+            }
+        }
+        return syntaxErrorRanges;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    public MemoTable parse(String input) {
+        // The memo table
+        var memoTable = new MemoTable();
+
+        // A set of MemoKey instances for entries that need matching.
+        // Use PriorityBlockingQueue, since memo table initialization is parallelized,
+        // and multiple threads will concurrently add parent matches to the priority queue.
+        var priorityQueue = new PriorityBlockingQueue<MemoKey>();
+
+        // Always match Start at the first position, if any clause depends upon it
+        for (var clause : allClauses) {
+            if (clause instanceof Start) {
+                priorityQueue.add(new MemoKey(clause, 0));
+                // Because clauses are interned, can stop after one instance of Start clause is found
+                break;
+            }
+        }
+
+        // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
+        if (lexClause != null) {
+            // Run lex preprocessing step, top-down, from each character position, skipping to end of each
+            // subsequent match
+            for (int startPos = 0; startPos < input.length();) {
+                var memoKey = new MemoKey(lexClause, startPos);
+                // Match the lex rule top-down, populating the memo table for subclause matches
+                var match = lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input);
+                var matchLen = match != null ? match.len : 0;
+                if (match != null) {
+                    if (DEBUG) {
+                        System.out.println("Lex match: " + match.toStringWithRuleNames());
+                    }
+                    // Memoize the subtree of matches, once a lex rule matches 
+                    memoTable.addMatchRecursive(match, priorityQueue);
+                } else {
+                    if (DEBUG) {
+                        System.out.println("Lex rule did not match at input position " + startPos);
+                    }
+                }
+                startPos += Math.max(1, matchLen);
+            }
+        } else {
+            // Find positions that all terminals match, and create the initial active set from parents of terminals,
+            // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
+            // to be added to the memo table, because the match status of a given terminal at a given position will
+            // never change).
+            allClauses.parallelStream() //
+                    .filter(clause -> clause instanceof Terminal
+                            // Don't match Nothing everywhere -- it always matches
+                            && !(clause instanceof Nothing))
+                    .forEach(clause -> {
+                        // Terminals are matched top down
+                        for (int startPos = 0; startPos < input.length(); startPos++) {
+                            var memoKey = new MemoKey(clause, startPos);
+                            var match = clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input);
+                            if (match != null) {
+                                if (DEBUG) {
+                                    System.out.println("Initial terminal match: " + match.toStringWithRuleNames());
+                                }
+                                memoTable.addMatch(match, priorityQueue);
+                            }
+                            if (clause instanceof Start) {
+                                // Only match Start in the first position
+                                break;
+                            }
+                        }
+                    });
+        }
+
+        // Main parsing loop
+        while (!priorityQueue.isEmpty()) {
+            // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
+            // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
+            var memoKey = priorityQueue.remove();
+            var match = memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input);
+            if (match != null) {
+                // Memoize any new match, and schedule parent clauses for evaluation in the priority queue
+                memoTable.addMatch(match, priorityQueue);
+
+                if (DEBUG) {
+                    System.out.println("Matched: " + memoKey.toStringWithRuleNames());
+                }
+            } else if (DEBUG) {
+                System.out.println("Failed to match: " + memoKey.toStringWithRuleNames());
+            }
+        }
+        return memoTable;
     }
 }

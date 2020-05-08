@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 import pikaparser.clause.Clause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.Terminal;
+import pikaparser.grammar.Grammar;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoTable;
 
@@ -53,8 +55,9 @@ public class ParserInfo {
         int marginWidth = 0;
         for (int i = 0; i < allClauses.size(); i++) {
             buf[i] = new StringBuilder();
-            buf[i].append(String.format("%3d", i) + " : ");
-            Clause clause = allClauses.get(i);
+            int clauseIdx = allClauses.size() - 1 - i;
+            buf[i].append(String.format("%3d", clauseIdx) + " : ");
+            Clause clause = allClauses.get(clauseIdx);
             if (clause instanceof Terminal) {
                 buf[i].append("[terminal] ");
             }
@@ -74,7 +77,8 @@ public class ParserInfo {
             }
         }
         for (int i = 0; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(i);
+            int clauseIdx = allClauses.size() - 1 - i;
+            Clause clause = allClauses.get(clauseIdx);
             // Render non-matches
             for (var startPos : memoTable.getNonMatchPositions(clause)) {
                 if (startPos <= input.length()) {
@@ -346,74 +350,23 @@ public class ParserInfo {
         }
     }
 
-    private static void addRange(int startPos, int endPos, TreeMap<Integer, Integer> ranges) {
-        // Try merging new range with floor entry in TreeMap
-        var startFloorEntry = ranges.floorEntry(startPos);
-        int expandedRangeStart;
-        int expandedRangeEnd;
-        if (startFloorEntry == null || startFloorEntry.getValue() < startPos) {
-            // There is no startFloorEntry, or startFloorEntry ends before startPos -- add a new entry 
-            ranges.put(expandedRangeStart = startPos, expandedRangeEnd = endPos);
-        } else {
-            // startFloorEntry overlaps with range -- extend startFloorEntry
-            ranges.put(expandedRangeStart = startFloorEntry.getKey(),
-                    expandedRangeEnd = Math.max(startFloorEntry.getValue(), endPos));
-        }
-        // Try merging new range with the following entry in TreeMap
-        var higherEntry = ranges.higherEntry(expandedRangeStart);
-        if (higherEntry != null && higherEntry.getKey() <= expandedRangeEnd) {
-            // Expanded-range entry overlaps with the following entry -- collapse them into one
-            ranges.remove(higherEntry.getKey());
-            ranges.put(expandedRangeStart, Math.max(expandedRangeEnd, higherEntry.getValue()));
-        }
-    }
-
-    public static TreeMap<Integer, Integer> getSyntaxErrors(Parser parser, String... syntaxCoverageRuleNames) {
-        // Find the range of characters spanned by matches for each of the coverageRuleNames
-        var parsedRanges = new TreeMap<Integer, Integer>();
-        for (var coverageRuleName : syntaxCoverageRuleNames) {
-            for (var match : parser.grammar.getNonOverlappingMatches(parser.memoTable, coverageRuleName)) {
-                addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, parsedRanges);
-            }
-        }
-        // Find the inverse of the spanned ranges -- these are the syntax errors
-        var syntaxErrorRanges = new TreeMap<Integer, Integer>();
-        int prevEndPos = 0;
-        for (var ent : parsedRanges.entrySet()) {
-            var currStartPos = ent.getKey();
-            var currEndPos = ent.getValue();
-            if (currStartPos > prevEndPos) {
-                syntaxErrorRanges.put(prevEndPos, currStartPos);
-            }
-            prevEndPos = currEndPos;
-        }
-        if (!parsedRanges.isEmpty()) {
-            var lastEnt = parsedRanges.lastEntry();
-            var lastEntEndPos = lastEnt.getValue();
-            if (lastEntEndPos < parser.input.length()) {
-                // Add final syntax error range, if there is one
-                syntaxErrorRanges.put(lastEntEndPos, parser.input.length());
-            }
-        }
-        return syntaxErrorRanges;
-    }
-
-    public static void printSyntaxErrors(Parser parser, String[] syntaxCoverageRuleNames) {
-        var syntaxErrors = getSyntaxErrors(parser, syntaxCoverageRuleNames);
+    /** Print syntax errors obtained from {@link Grammar#getSyntaxErrors(MemoTable, String, String...)}. */
+    public static void printSyntaxErrors(TreeMap<Integer, Entry<Integer, String>> syntaxErrors) {
         if (!syntaxErrors.isEmpty()) {
             System.out.println("\nSYNTAX ERRORS:\n");
             for (var ent : syntaxErrors.entrySet()) {
                 var startPos = ent.getKey();
-                var endPos = ent.getValue();
+                var endPos = ent.getValue().getKey();
+                var syntaxErrStr = ent.getValue().getValue();
                 // TODO: show line numbers
-                System.out.println(startPos + " : " + replaceNonASCII(parser.input.substring(startPos, endPos)));
+                System.out.println(startPos + "+" + (endPos - startPos) + " : " + replaceNonASCII(syntaxErrStr));
             }
         }
     }
 
-    public static List<Clause> getClauseOrder(Parser parser) {
+    public static List<Clause> getClauseOrder(Grammar grammar) {
         var clauseOrder = new ArrayList<Clause>();
-        List<Clause> allClauses = parser.grammar.allClauses;
+        List<Clause> allClauses = grammar.allClauses;
         for (int i = 0; i < allClauses.size(); i++) {
             Clause clause = allClauses.get(allClauses.size() - 1 - i);
             if (!(clause instanceof Terminal)) {
@@ -422,7 +375,7 @@ public class ParserInfo {
             }
         }
         for (int i = 0; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(i);
+            Clause clause = allClauses.get(allClauses.size() - 1 - i);
             if (clause instanceof Terminal && !(clause instanceof Nothing)) {
                 // Then show terminals
                 clauseOrder.add(clause);
@@ -431,18 +384,18 @@ public class ParserInfo {
         return clauseOrder;
     }
 
-    public static void printParseResult(Parser parser, String topLevelRuleName, String[] syntaxCoverageRuleNames,
-            boolean showAllMatches) {
+    public static void printParseResult(Grammar grammar, MemoTable memoTable, String input, String topLevelRuleName,
+            String[] syntaxCoverageRuleNames, boolean showAllMatches) {
         // Print parse tree, and find which characters were consumed and which weren't
-        BitSet consumedChars = new BitSet(parser.input.length() + 1);
+        BitSet consumedChars = new BitSet(input.length() + 1);
 
         // Find reachable clauses, by reversing topological order of clauses, and putting terminals last 
-        var clauseOrder = getClauseOrder(parser);
+        var clauseOrder = getClauseOrder(grammar);
 
         // Print memo table
         System.out.println();
         System.out.println("Memo table:");
-        var marginWidth = printMemoTable(clauseOrder, parser.memoTable, parser.input, consumedChars);
+        var marginWidth = printMemoTable(clauseOrder, memoTable, input, consumedChars);
 
         // Print parse tree
         System.out.println("Parse tree:");
@@ -450,11 +403,11 @@ public class ParserInfo {
         for (int i = 0; i < marginWidth; i++) {
             indentBuf.append(' ');
         }
-        printParseTree(clauseOrder, parser.memoTable, parser.input, indentBuf.toString());
+        printParseTree(clauseOrder, memoTable, input, indentBuf.toString());
 
         // Print all matches for each clause
-        for (Clause clause : parser.grammar.allClauses) {
-            var matches = parser.memoTable.getAllMatches(clause);
+        for (Clause clause : grammar.allClauses) {
+            var matches = memoTable.getAllMatches(clause);
             if (!matches.isEmpty()) {
                 System.out.println("\n====================================\n\nMatches for "
                         + clause.toStringWithRuleNames() + " :");
@@ -478,8 +431,7 @@ public class ParserInfo {
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
                         System.out.println();
-                        match.printTreeView(parser.input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel,
-                                true);
+                        match.printTreeView(input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel, true);
                     }
                     int newEndPos = match.memoKey.startPos + match.len;
                     if (newEndPos > prevEndPos) {
@@ -489,10 +441,10 @@ public class ParserInfo {
             }
         }
 
-        var topLevelRule = parser.grammar.ruleNameWithPrecedenceToRule.get(topLevelRuleName);
+        var topLevelRule = grammar.ruleNameWithPrecedenceToRule.get(topLevelRuleName);
         if (topLevelRule != null) {
             var topLevelRuleClause = topLevelRule.clause;
-            var topLevelMatches = parser.memoTable.getNonOverlappingMatches(topLevelRuleClause);
+            var topLevelMatches = memoTable.getNonOverlappingMatches(topLevelRuleClause);
             if (!topLevelMatches.isEmpty()) {
                 for (int i = 0; i < topLevelMatches.size(); i++) {
                     var topLevelMatch = topLevelMatches.get(i);
@@ -508,7 +460,7 @@ public class ParserInfo {
                 }
                 for (int i = 0; i < topLevelMatches.size(); i++) {
                     var topLevelMatch = topLevelMatches.get(i);
-                    var ast = topLevelMatch.toAST(topLevelASTNodeName, parser.input);
+                    var ast = topLevelMatch.toAST(topLevelASTNodeName, input);
                     if (ast != null) {
                         System.out.println();
                         System.out.println(ast.toString());
@@ -521,9 +473,12 @@ public class ParserInfo {
             System.out.println("\nToplevel rule \"" + topLevelRuleName + "\" does not exist");
         }
 
-        printSyntaxErrors(parser, syntaxCoverageRuleNames);
+        var syntaxErrors = grammar.getSyntaxErrors(memoTable, input, syntaxCoverageRuleNames);
+        if (!syntaxErrors.isEmpty()) {
+            printSyntaxErrors(syntaxErrors);
+        }
 
-        System.out.println("\nNum match objects created: " + parser.memoTable.numMatchObjectsCreated);
-        System.out.println("Num match objects memoized:  " + parser.memoTable.numMatchObjectsMemoized);
+        System.out.println("\nNum match objects created: " + memoTable.numMatchObjectsCreated);
+        System.out.println("Num match objects memoized:  " + memoTable.numMatchObjectsMemoized);
     }
 }

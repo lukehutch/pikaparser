@@ -17,14 +17,14 @@ public class MemoKey implements Comparable<MemoKey> {
 
     /** Sort order for {@link MemoKey} instances. */
     @Override
-    public int compareTo(MemoKey o) {
+    public int compareTo(MemoKey other) {
         // Sort MemoKeys in reverse order of startPos 
-        int diff = -(this.startPos - o.startPos);
+        int diff = -(this.startPos - other.startPos);
         if (diff != 0) {
             return diff;
         }
         // Break ties using clause topological sort index, sorting from bottom-up 
-        return this.clause.clauseIdx - o.clause.clauseIdx;
+        return this.clause.clauseIdx - other.clause.clauseIdx;
     }
 
     @Override

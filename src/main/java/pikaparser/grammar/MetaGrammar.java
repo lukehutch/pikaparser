@@ -9,7 +9,7 @@ import java.util.List;
 import pikaparser.clause.Clause;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.parser.ASTNode;
-import pikaparser.parser.Parser;
+import pikaparser.parser.ParserInfo;
 
 public class MetaGrammar {
     // Rule names:
@@ -380,21 +380,28 @@ public class MetaGrammar {
         return rule(ruleName, precedence, associativity, clause);
     }
 
-    public static Grammar parseGrammar(Parser parser) {
-        var topLevelMatches = parser.grammar.getNonOverlappingMatches(parser.memoTable, GRAMMAR);
+    public static Grammar parse(String input) {
+        var memoTable = grammar.parse(input);
+
+        var syntaxErrors = grammar.getSyntaxErrors(memoTable, input, new String[] { GRAMMAR, RULE, CLAUSE });
+        if (syntaxErrors.isEmpty()) {
+            ParserInfo.printSyntaxErrors(syntaxErrors);
+        }
+
+        var topLevelMatches = grammar.getNonOverlappingMatches(memoTable, GRAMMAR);
         if (topLevelMatches.isEmpty()) {
             throw new IllegalArgumentException("Toplevel rule \"" + GRAMMAR + "\" did not match");
         } else if (topLevelMatches.size() > 1) {
             throw new IllegalArgumentException("Multiple toplevel matches");
         }
-        var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", parser.input);
+        var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", input);
         List<Rule> rules = new ArrayList<>();
         String lexRuleName = null;
         for (ASTNode astNode : topLevelASTNode.children) {
             if (!astNode.label.equals(RULE_AST)) {
                 throw new IllegalArgumentException("Wrong node type");
             }
-            Rule rule = parseRule(astNode, parser.input);
+            Rule rule = parseRule(astNode, input);
             rules.add(rule);
             if (rule.ruleName != null && rule.ruleName.equals("Lex")) {
                 // If a rule is named "Lex", then use that as the toplevel lex rule

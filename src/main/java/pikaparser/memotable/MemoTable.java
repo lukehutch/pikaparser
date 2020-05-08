@@ -38,7 +38,7 @@ public class MemoTable {
         // If there is no ConcurrentSkipListMap for the clause, create one
         var skipList = memoTable.computeIfAbsent(memoKey.clause, clause -> new ConcurrentSkipListMap<>());
         // If there was no memo at the start position, create one.
-        var memoEntry = skipList.computeIfAbsent(memoKey.startPos, startPos -> new MemoEntry(memoKey));
+        var memoEntry = skipList.computeIfAbsent(memoKey.startPos, startPos -> new MemoEntry());
         return memoEntry;
     }
 
@@ -90,7 +90,7 @@ public class MemoTable {
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
         numMatchObjectsCreated.incrementAndGet();
-        memoEntry.addNewBestMatch(match, priorityQueue, numMatchObjectsMemoized);
+        memoEntry.addMatch(match, priorityQueue, numMatchObjectsMemoized);
         return match;
     }
 

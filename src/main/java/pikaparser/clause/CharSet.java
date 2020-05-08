@@ -10,7 +10,6 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
-import pikaparser.parser.Parser;
 
 public class CharSet extends Terminal {
 
@@ -87,10 +86,6 @@ public class CharSet extends Terminal {
                     return true;
                 }
             }
-        }
-        if (Parser.DEBUG) {
-            System.out.println(
-                    "Failed to match at position " + memoKey.startPos + ": " + memoKey.toStringWithRuleNames());
         }
         return false;
     }
