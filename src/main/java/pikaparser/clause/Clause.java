@@ -36,6 +36,12 @@ public abstract class Clause {
 
     public Clause(Clause... subClauses) {
         this.subClauses = subClauses;
+        if (subClauses.length > 0 && subClauses[0] instanceof Nothing) {
+            // Nothing can't be the first subclause, since we don't trigger upwards expansion of the DP wavefront
+            // by seeding the memo table by matching Nothing at every input position, to keep the memo table small
+            throw new IllegalArgumentException(
+                    Nothing.class.getSimpleName() + " cannot be the first subclause of any clause");
+        }
     }
 
     public void registerRule(Rule rule) {
