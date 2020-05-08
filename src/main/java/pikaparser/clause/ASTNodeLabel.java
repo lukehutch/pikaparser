@@ -1,9 +1,8 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
@@ -17,7 +16,7 @@ public class ASTNodeLabel extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
 

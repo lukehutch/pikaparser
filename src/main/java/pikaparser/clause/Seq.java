@@ -2,10 +2,9 @@ package pikaparser.clause;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.Parser;
@@ -52,7 +51,7 @@ public class Seq extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         Match[] subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
@@ -60,9 +59,9 @@ public class Seq extends Clause {
             var subClauseMemoKey = new MemoKey(subClause, currStartPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, updatedEntries)
+                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, priorityQueue)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                    : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey, updatedEntries);
+                    : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 if (Parser.DEBUG) {
@@ -78,7 +77,7 @@ public class Seq extends Clause {
             currStartPos += subClauseMatch.len;
         }
         return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches,
-                updatedEntries);
+                priorityQueue);
     }
 
     @Override

@@ -6,9 +6,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.Parser;
@@ -95,7 +95,7 @@ public class CharSet extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         if (memoKey.startPos >= input.length()) {
             return null;
         }
@@ -103,7 +103,7 @@ public class CharSet extends Terminal {
             return matchDirection == MatchDirection.TOP_DOWN //
                     ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, 1,
                             Match.NO_SUBCLAUSE_MATCHES)
-            : memoTable.addTerminalMatch(memoKey, /* len = */ 1, updatedEntries);
+            : memoTable.addTerminalMatch(memoKey, /* len = */ 1, priorityQueue);
         }
         if (Parser.DEBUG) {
             System.out.println(

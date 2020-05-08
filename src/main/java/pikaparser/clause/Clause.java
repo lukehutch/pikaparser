@@ -6,11 +6,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.stream.Collectors;
 
 import pikaparser.grammar.Rule;
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
@@ -92,7 +92,7 @@ public abstract class Clause {
 
     /** Match a clause bottom-up at a given start position. */
     public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries);
+            PriorityBlockingQueue<MemoKey> priorityQueue);
 
     // -------------------------------------------------------------------------------------------------------------
 

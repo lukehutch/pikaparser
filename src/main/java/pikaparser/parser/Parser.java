@@ -1,7 +1,5 @@
 package pikaparser.parser;
 
-import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.clause.Clause.MatchDirection;
@@ -9,7 +7,6 @@ import pikaparser.clause.Nothing;
 import pikaparser.clause.Start;
 import pikaparser.clause.Terminal;
 import pikaparser.grammar.Grammar;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
@@ -19,8 +16,6 @@ public class Parser {
     public String input;
 
     public final MemoTable memoTable = new MemoTable();
-
-    private static final boolean PARALLELIZE = true;
 
     public static boolean DEBUG = false;
 
@@ -37,9 +32,6 @@ public class Parser {
 
         // A set of MemoKey instances for entries that need matching
         var priorityQueue = new PriorityBlockingQueue<MemoKey>();
-
-        // Memo table entries for which new matches were found in the current iteration
-        var updatedEntries = Collections.newSetFromMap(new ConcurrentHashMap<MemoEntry, Boolean>());
 
         // Always match Start at the first position, if any clause depends upon it
         for (var clause : grammar.allClauses) {
@@ -58,14 +50,14 @@ public class Parser {
                 var memoKey = new MemoKey(grammar.lexClause, startPos);
                 // Match the lex rule top-down, populating the memo table for subclause matches
                 var match = grammar.lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
-                        updatedEntries);
+                        priorityQueue);
                 var matchLen = match != null ? match.len : 0;
                 if (match != null) {
                     if (Parser.DEBUG) {
                         System.out.println("Lex match: " + match.toStringWithRuleNames());
                     }
                     // Memoize the subtree of matches, once a lex rule matches 
-                    memoTable.addMatchRecursive(match, updatedEntries);
+                    memoTable.addMatchRecursive(match, priorityQueue);
                 } else {
                     if (Parser.DEBUG) {
                         System.out.println("Lex rule did not match at input position " + startPos);
@@ -78,7 +70,7 @@ public class Parser {
             // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
             // to be added to the memo table, because the match status of a given terminal at a given position will
             // never change).
-            (PARALLELIZE ? grammar.allClauses.parallelStream() : grammar.allClauses.stream())
+            grammar.allClauses.parallelStream() //
                     .filter(clause -> clause instanceof Terminal
                             // Don't match Nothing everywhere -- it always matches
                             && !(clause instanceof Nothing))
@@ -87,12 +79,12 @@ public class Parser {
                         for (int startPos = 0; startPos < input.length(); startPos++) {
                             var memoKey = new MemoKey(clause, startPos);
                             var match = clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input,
-                                    updatedEntries);
+                                    priorityQueue);
                             if (match != null) {
                                 if (Parser.DEBUG) {
                                     System.out.println("Initial terminal match: " + match.toStringWithRuleNames());
                                 }
-                                memoTable.addMatch(match, updatedEntries);
+                                memoTable.addMatch(match, priorityQueue);
                             }
                             if (clause instanceof Start) {
                                 // Only match Start in the first position
@@ -105,22 +97,11 @@ public class Parser {
         // Main parsing loop
         // (need to check if (!updatedEntries.isEmpty()) in the while condition, even though updatedEntries.clear()
         // is called at the end of the loop, because updatedEntries can be populated by lex preprocessing)
-        while (!priorityQueue.isEmpty() || !updatedEntries.isEmpty()) {
-            // For each updated entry, replace current best match with new best match, and add parent memo keys
-            // to the priority queue
-            (PARALLELIZE ? updatedEntries.parallelStream() : updatedEntries.stream()).forEach(memoEntry -> {
-                memoEntry.updateBestMatch(input, priorityQueue, memoTable.numMatchObjectsMemoized);
-            });
-            updatedEntries.clear();
-
-            if (!priorityQueue.isEmpty()) {
-                // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
-                // and from lowest clauses to toplevel clauses), and try matching the MemoKey
-                var memoKey = priorityQueue.remove();
-//                System.out.println(memoKey.toStringWithRuleNames() + "\t"
-//                        + (memoKey.startPos < input.length() ? input.charAt(memoKey.startPos) : "X"));
-                memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, updatedEntries);
-            }
+        while (!priorityQueue.isEmpty()) {
+            // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
+            // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
+            var memoKey = priorityQueue.remove();
+            memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input, priorityQueue);
         }
     }
 }

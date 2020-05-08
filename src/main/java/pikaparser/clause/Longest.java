@@ -1,9 +1,8 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.Parser;
@@ -30,7 +29,7 @@ public class Longest extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         Match longestSubClauseMatch = null;
         int longestSubClauseMatchIdx = 0;
         for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
@@ -38,9 +37,9 @@ public class Longest extends Clause {
             var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, updatedEntries)
+                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, priorityQueue)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                    : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey, updatedEntries);
+                    : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
             if (subClauseMatch != null
                     && (longestSubClauseMatch == null || longestSubClauseMatch.len < subClauseMatch.len)) {
                 longestSubClauseMatch = subClauseMatch;
@@ -49,7 +48,7 @@ public class Longest extends Clause {
         }
         if (longestSubClauseMatch != null) {
             return memoTable.addNonTerminalMatch(memoKey, longestSubClauseMatchIdx,
-                    new Match[] { longestSubClauseMatch }, updatedEntries);
+                    new Match[] { longestSubClauseMatch }, priorityQueue);
         } else {
             if (Parser.DEBUG) {
                 System.out.println("All subclauses failed to match at position " + memoKey.startPos + ": "

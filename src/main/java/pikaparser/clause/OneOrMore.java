@@ -1,9 +1,8 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.Parser;
@@ -26,14 +25,14 @@ public class OneOrMore extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         var subClause = subClauses[0];
         var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
         var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                 // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, updatedEntries)
+                ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input, priorityQueue)
                 // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey, updatedEntries);
+                : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
         if (subClauseMatch == null) {
             // Zero matches
             if (Parser.DEBUG) {
@@ -47,13 +46,13 @@ public class OneOrMore extends Clause {
         // If there are two or more matches, tailMatch will be non-null.
         var tailMatchMemoKey = new MemoKey(this, memoKey.startPos + subClauseMatch.len);
         var tailMatch = matchDirection == MatchDirection.TOP_DOWN
-                ? this.match(MatchDirection.TOP_DOWN, memoTable, tailMatchMemoKey, input, updatedEntries)
-                : memoTable.lookUpBestMatch(tailMatchMemoKey, input, memoKey, updatedEntries);
+                ? this.match(MatchDirection.TOP_DOWN, memoTable, tailMatchMemoKey, input, priorityQueue)
+                : memoTable.lookUpBestMatch(tailMatchMemoKey, input, memoKey);
 
         // Return a new (right-recursive) match
         return memoTable.addNonTerminalMatch(memoKey, /* firstMatchingSubClauseIdx = */ 0,
                 tailMatch == null ? new Match[] { subClauseMatch } : new Match[] { subClauseMatch, tailMatch },
-                updatedEntries);
+                priorityQueue);
     }
 
     @Override

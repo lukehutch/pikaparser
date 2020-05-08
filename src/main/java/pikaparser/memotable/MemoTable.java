@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
@@ -53,8 +53,7 @@ public class MemoTable {
      * If matchDirection == TOP_DOWN, recurse down through child clauses (standard recursive descent parsing,
      * unmemoized).
      */
-    public Match lookUpBestMatch(MemoKey memoKey, String input, MemoKey parentMemoKey,
-            Set<MemoEntry> updatedEntries) {
+    public Match lookUpBestMatch(MemoKey memoKey, String input, MemoKey parentMemoKey) {
         // Create a new memo entry for non-terminals
         // (Have to add memo entry if terminal does match, since a new match needs to trigger parent clauses.)
         // Get MemoEntry for the MemoKey
@@ -84,23 +83,23 @@ public class MemoTable {
         return null;
     }
 
-    /** Add a tree of {@link Match} objects to the memo table (used for lex rules that match). */
-    public Match addMatchRecursive(Match match, Set<MemoEntry> updatedEntries) {
-        addMatch(match, updatedEntries);
-        for (int i = 0; i < match.subClauseMatches.length; i++) {
-            addMatchRecursive(match.subClauseMatches[i], updatedEntries);
-        }
-        return match;
-    }
-
     /** Add a new {@link Match} to the memo table. */
-    public Match addMatch(Match match, Set<MemoEntry> updatedEntries) {
+    public Match addMatch(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
         // Get or create MemoEntry for the MemoKey
         var memoEntry = getOrCreateMemoEntry(match.memoKey);
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
         numMatchObjectsCreated.incrementAndGet();
-        memoEntry.addNewBestMatch(match, updatedEntries);
+        memoEntry.addNewBestMatch(match, priorityQueue, numMatchObjectsMemoized);
+        return match;
+    }
+
+    /** Add a tree of {@link Match} objects to the memo table (used for lex rules that match). */
+    public Match addMatchRecursive(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
+        addMatch(match, priorityQueue);
+        for (int i = 0; i < match.subClauseMatches.length; i++) {
+            addMatchRecursive(match.subClauseMatches[i], priorityQueue);
+        }
         return match;
     }
 
@@ -109,7 +108,7 @@ public class MemoTable {
      * according to the match criteria for the clause.
      */
     public Match addNonTerminalMatch(MemoKey memoKey, int firstMatchingSubClauseIdx, Match[] subClauseMatches,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         // Find total length of all subclause matches
         var len = 0;
         if (subClauseMatches.length > 0) {
@@ -117,16 +116,16 @@ public class MemoTable {
                 len += subClauseMatch.len;
             }
         }
-        return addMatch(new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches), updatedEntries);
+        return addMatch(new Match(memoKey, firstMatchingSubClauseIdx, len, subClauseMatches), priorityQueue);
     }
 
     /**
      * Add a new terminal {@link Match} to the memo table. Called when the subclauses of a clause match according to
      * the match criteria for the clause.
      */
-    public Match addTerminalMatch(MemoKey memoKey, int len, Set<MemoEntry> updatedEntries) {
+    public Match addTerminalMatch(MemoKey memoKey, int len, PriorityBlockingQueue<MemoKey> priorityQueue) {
         return addMatch(new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, Match.NO_SUBCLAUSE_MATCHES),
-                updatedEntries);
+                priorityQueue);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -13,3 +13,4 @@ TODO:
   
 
 - precedence climbing becomes precedence descent, for bottom-up parsing 
+- Longest can be used in lex rules to avoid prefix matches

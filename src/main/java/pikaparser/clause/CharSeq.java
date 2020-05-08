@@ -1,9 +1,8 @@
 package pikaparser.clause;
 
-import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.Parser;
@@ -20,14 +19,14 @@ public class CharSeq extends Terminal {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input,
-            Set<MemoEntry> updatedEntries) {
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
         // Terminals always add matches to the memo table if they match
         if (memoKey.startPos < input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
             return matchDirection == MatchDirection.TOP_DOWN //
                     ? new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, str.length(),
                             Match.NO_SUBCLAUSE_MATCHES)
-                    : memoTable.addTerminalMatch(memoKey, /* len = */ str.length(), updatedEntries);
+                    : memoTable.addTerminalMatch(memoKey, /* len = */ str.length(), priorityQueue);
         }
         if (Parser.DEBUG) {
             System.out.println(
