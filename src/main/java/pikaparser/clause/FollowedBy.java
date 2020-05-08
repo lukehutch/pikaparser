@@ -29,7 +29,7 @@ public class FollowedBy extends Clause {
                 // Match lex rules top-down, which avoids creating memo entries for unused terminals.
                 ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                 // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
+                : memoTable.lookUpBestMatch(subClauseMemoKey);
         // Replace any valid subclause match with a zero-char-consuming match
         if (subClauseMatch != null) {
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,

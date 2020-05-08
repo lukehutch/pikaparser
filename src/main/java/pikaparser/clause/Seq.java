@@ -58,7 +58,7 @@ public class Seq extends Clause {
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
                     ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                    : memoTable.lookUpBestMatch(subClauseMemoKey, input, memoKey);
+                    : memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 return null;

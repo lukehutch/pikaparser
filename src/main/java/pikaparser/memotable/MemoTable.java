@@ -2,10 +2,11 @@ package pikaparser.memotable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,7 +15,7 @@ import pikaparser.clause.Clause;
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
     /** A map from clause to startPos to MemoEntry. */
-    private Map<Clause, ConcurrentSkipListMap<Integer, MemoEntry>> memoTable = new ConcurrentHashMap<>();
+    private Map<Clause, NavigableMap<Integer, MemoEntry>> memoTable = new HashMap<>();
 
     /** The number of {@link Match} instances created. */
     public final AtomicInteger numMatchObjectsCreated = new AtomicInteger();
@@ -23,24 +24,6 @@ public class MemoTable {
      * The number of {@link Match} instances added to the memo table (some will be overwritten by later matches).
      */
     public final AtomicInteger numMatchObjectsMemoized = new AtomicInteger();
-
-    /**
-     * Get the existing {@link MemoEntry} for this clause at the requested start position, or create and return a
-     * new empty {@link MemoEntry} if one did not exist.
-     * 
-     * @param memoKey
-     *            The clause and start position to check for a match.
-     * @return The existing {@link MemoEntry} for this clause at the requested start position, or a new empty
-     *         {@link MemoEntry} if one did not exist.
-     */
-    private MemoEntry getOrCreateMemoEntry(MemoKey memoKey) {
-        // Look up a memo at the start position
-        // If there is no ConcurrentSkipListMap for the clause, create one
-        var skipList = memoTable.computeIfAbsent(memoKey.clause, clause -> new ConcurrentSkipListMap<>());
-        // If there was no memo at the start position, create one.
-        var memoEntry = skipList.computeIfAbsent(memoKey.startPos, startPos -> new MemoEntry());
-        return memoEntry;
-    }
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -53,13 +36,14 @@ public class MemoTable {
      * If matchDirection == TOP_DOWN, recurse down through child clauses (standard recursive descent parsing,
      * unmemoized).
      */
-    public Match lookUpBestMatch(MemoKey memoKey, String input, MemoKey parentMemoKey) {
+    public Match lookUpBestMatch(MemoKey memoKey) {
         // Create a new memo entry for non-terminals
         // (Have to add memo entry if terminal does match, since a new match needs to trigger parent clauses.)
         // Get MemoEntry for the MemoKey
-        var memoEntry = getOrCreateMemoEntry(memoKey);
+        var skipList = memoTable.get(memoKey.clause);
+        var memoEntry = skipList == null ? null : skipList.get(memoKey.startPos);
 
-        if (memoEntry.bestMatch != null) {
+        if (memoEntry != null && memoEntry.bestMatch != null) {
             // If there is already a memoized best match in the MemoEntry, return it
             return memoEntry.bestMatch;
 
@@ -84,14 +68,15 @@ public class MemoTable {
     }
 
     /** Add a new {@link Match} to the memo table. */
-    public Match addMatch(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
-        // Get or create MemoEntry for the MemoKey
-        var memoEntry = getOrCreateMemoEntry(match.memoKey);
+    public void addMatch(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
+        numMatchObjectsCreated.incrementAndGet();
+
+        // Get the memo entry for memoKey if already present; if not, create a new entry
+        var skipList = memoTable.computeIfAbsent(match.memoKey.clause, c -> new TreeMap<>());
+        var memoEntry = skipList.computeIfAbsent(match.memoKey.startPos, s -> new MemoEntry());
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
-        numMatchObjectsCreated.incrementAndGet();
         memoEntry.addMatch(match, priorityQueue, numMatchObjectsMemoized);
-        return match;
     }
 
     /** Add a tree of {@link Match} objects to the memo table (used for lex rules that match). */
