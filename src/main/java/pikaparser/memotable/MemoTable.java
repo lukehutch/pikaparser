@@ -40,8 +40,8 @@ public class MemoTable {
         // Create a new memo entry for non-terminals
         // (Have to add memo entry if terminal does match, since a new match needs to trigger parent clauses.)
         // Get MemoEntry for the MemoKey
-        var skipList = memoTable.get(memoKey.clause);
-        var memoEntry = skipList == null ? null : skipList.get(memoKey.startPos);
+        var clauseEntries = memoTable.get(memoKey.clause);
+        var memoEntry = clauseEntries == null ? null : clauseEntries.get(memoKey.startPos);
 
         if (memoEntry != null && memoEntry.bestMatch != null) {
             // If there is already a memoized best match in the MemoEntry, return it
@@ -72,8 +72,8 @@ public class MemoTable {
         numMatchObjectsCreated.incrementAndGet();
 
         // Get the memo entry for memoKey if already present; if not, create a new entry
-        var skipList = memoTable.computeIfAbsent(match.memoKey.clause, c -> new TreeMap<>());
-        var memoEntry = skipList.computeIfAbsent(match.memoKey.startPos, s -> new MemoEntry());
+        var clauseEntries = memoTable.computeIfAbsent(match.memoKey.clause, c -> new TreeMap<>());
+        var memoEntry = clauseEntries.computeIfAbsent(match.memoKey.startPos, s -> new MemoEntry());
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
         memoEntry.addMatch(match, priorityQueue, numMatchObjectsMemoized);
