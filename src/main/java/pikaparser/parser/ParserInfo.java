@@ -108,12 +108,12 @@ public class ParserInfo {
         for (var i = 0; i < clauseForRow.size(); i++) {
             var clause = clauseForRow.get(i);
             rowLabel[i] = new StringBuilder();
-//            if (clause instanceof Terminal) {
-//                rowLabel[i].append("[terminal] ");
-//            }
-//            if (clause.canMatchZeroChars) {
-//                rowLabel[i].append("[canMatchZeroChars] ");
-//            }
+            if (clause instanceof Terminal) {
+                rowLabel[i].append("[terminal] ");
+            }
+            if (clause.canMatchZeroChars) {
+                rowLabel[i].append("[canMatchZeroChars] ");
+            }
             rowLabel[i].append(clause.toStringWithRuleNames());
             rowLabel[i].append("  ");
             rowLabelMaxWidth = Math.max(rowLabelMaxWidth, rowLabel[i].length());
@@ -127,11 +127,11 @@ public class ParserInfo {
             for (int j = 0, jj = rowLabelMaxWidth - label.length(); j < jj; j++) {
                 rowLabel[i].append(' ');
             }
-            // rowLabel[i].append(String.format("%3d", grammar.allClauses.size() - 1 - clauseIdx) + " : ");
+            rowLabel[i].append(String.format("%3d", grammar.allClauses.size() - 1 - clauseIdx) + " : ");
             rowLabel[i].append(label);
         }
         var emptyRowLabel = new StringBuilder();
-        for (int i = 0, ii = rowLabelMaxWidth; i < ii; i++) {
+        for (int i = 0, ii = rowLabelMaxWidth + 6; i < ii; i++) {
             emptyRowLabel.append(' ');
         }
         var edgeMarkers = new StringBuilder();
@@ -151,9 +151,9 @@ public class ParserInfo {
                 var endIdx = startIdx + match.len;
 
                 for (var i = startIdx; i <= endIdx; i++) {
-                    char chrLeft = edgeMarkers.charAt(i * 2);
-                    treeChars.setCharAt(i * 2, i == startIdx ? (chrLeft == '│' ? '├' : '┌')
-                            : i == endIdx ? (chrLeft == '│' ? '┤' : '┐') : (chrLeft == '│' ? '┼' : '─'));
+                    char chrLeft = treeChars.charAt(i * 2);
+                    treeChars.setCharAt(i * 2, i == startIdx ? (chrLeft == '│' ? '├' : chrLeft == '┤' ? '┼' : '┌')
+                            : i == endIdx ? (chrLeft == '│' ? '┤' : '┐') : '─');
                     if (i < endIdx) {
                         treeChars.setCharAt(i * 2 + 1, '─');
                     }
@@ -184,7 +184,7 @@ public class ParserInfo {
         }
 
         // Print input index digits
-        for (int j = 0; j < rowLabelMaxWidth; j++) {
+        for (int j = 0; j < rowLabelMaxWidth + 6; j++) {
             System.out.print(' ');
         }
         System.out.print(' ');
@@ -195,7 +195,7 @@ public class ParserInfo {
         System.out.println();
 
         // Print input string
-        for (int i = 0; i < rowLabelMaxWidth; i++) {
+        for (int i = 0; i < rowLabelMaxWidth + 6; i++) {
             System.out.print(' ');
         }
         System.out.print(' ');

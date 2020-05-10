@@ -655,8 +655,7 @@ public class Grammar {
         var memoTable = new MemoTable();
 
         // A set of MemoKey instances for entries that need matching.
-        // Use PriorityBlockingQueue, since memo table initialization is parallelized,
-        // and multiple threads will concurrently add parent matches to the priority queue.
+        // Uses the concurrent PriorityBlockingQueue, since memo table initialization is parallelized.
         var priorityQueue = new PriorityBlockingQueue<MemoKey>();
 
         // Always match Start at the first position, if any clause depends upon it

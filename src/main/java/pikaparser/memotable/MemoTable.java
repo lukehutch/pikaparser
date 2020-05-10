@@ -2,11 +2,11 @@ package pikaparser.memotable;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,8 +14,11 @@ import pikaparser.clause.Clause;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
-    /** A map from clause to startPos to MemoEntry. */
-    private Map<Clause, NavigableMap<Integer, MemoEntry>> memoTable = new HashMap<>();
+    /**
+     * A map from clause to startPos to MemoEntry. (This uses concurrent data structures so that terminals can be
+     * memoized in parallel.)
+     */
+    private Map<Clause, NavigableMap<Integer, MemoEntry>> memoTable = new ConcurrentHashMap<>();
 
     /** The number of {@link Match} instances created. */
     public final AtomicInteger numMatchObjectsCreated = new AtomicInteger();
@@ -72,7 +75,7 @@ public class MemoTable {
         numMatchObjectsCreated.incrementAndGet();
 
         // Get the memo entry for memoKey if already present; if not, create a new entry
-        var clauseEntries = memoTable.computeIfAbsent(match.memoKey.clause, c -> new TreeMap<>());
+        var clauseEntries = memoTable.computeIfAbsent(match.memoKey.clause, c -> new ConcurrentSkipListMap<>());
         var memoEntry = clauseEntries.computeIfAbsent(match.memoKey.startPos, s -> new MemoEntry());
 
         // Record the new match in the memo entry, and schedule the memo entry to be updated  
