@@ -47,7 +47,8 @@ public class ParserInfo {
     public static void printClauses(Grammar grammar) {
         for (int i = grammar.allClauses.size() - 1; i >= 0; --i) {
             var clause = grammar.allClauses.get(i);
-            System.out.println(String.format("%3d : %s", i, clause.toStringWithRuleNames()));
+            System.out.println(
+                    String.format("%3d : %s", grammar.allClauses.size() - 1 - i, clause.toStringWithRuleNames()));
         }
     }
 
@@ -86,10 +87,12 @@ public class ParserInfo {
                 Collections.reverseOrder());
         var maxCycleDepth = 0;
         for (var topLevelMatch : grammar.getNonOverlappingMatches(toplevelRuleName, memoTable)) {
+            // Pack matches into the lowest cycle they will fit into
             var cycleDepth = findCycleDepth(topLevelMatch, cycleDepthToMatches);
             maxCycleDepth = Math.max(maxCycleDepth, cycleDepth);
         }
 
+        // Assign matches to rows
         List<Map<Integer, Match>> matchesForRow = new ArrayList<>();
         List<Clause> clauseForRow = new ArrayList<>();
         for (var matchesForDepth : cycleDepthToMatches.values()) {
@@ -101,28 +104,34 @@ public class ParserInfo {
 
         // Set up row labels
         var rowLabel = new StringBuilder[clauseForRow.size()];
-        var marginWidth = 0;
+        var rowLabelMaxWidth = 0;
+        for (var i = 0; i < clauseForRow.size(); i++) {
+            var clause = clauseForRow.get(i);
+            rowLabel[i] = new StringBuilder();
+//            if (clause instanceof Terminal) {
+//                rowLabel[i].append("[terminal] ");
+//            }
+//            if (clause.canMatchZeroChars) {
+//                rowLabel[i].append("[canMatchZeroChars] ");
+//            }
+            rowLabel[i].append(clause.toStringWithRuleNames());
+            rowLabel[i].append("  ");
+            rowLabelMaxWidth = Math.max(rowLabelMaxWidth, rowLabel[i].length());
+        }
         for (var i = 0; i < clauseForRow.size(); i++) {
             var clause = clauseForRow.get(i);
             var clauseIdx = clause.clauseIdx;
-            rowLabel[i] = new StringBuilder();
-            rowLabel[i].append(String.format("%3d", clauseIdx) + " : ");
-            if (clause instanceof Terminal) {
-                rowLabel[i].append("[terminal] ");
-            }
-            if (clause.canMatchZeroChars) {
-                rowLabel[i].append("[canMatchZeroChars] ");
-            }
-            rowLabel[i].append(clause.toStringWithRuleNames());
-            marginWidth = Math.max(marginWidth, rowLabel[i].length() + 2);
-        }
-        for (var i = 0; i < clauseForRow.size(); i++) {
-            while (rowLabel[i].length() < marginWidth) {
+            // Right-justify the row label
+            String label = rowLabel[i].toString();
+            rowLabel[i].setLength(0);
+            for (int j = 0, jj = rowLabelMaxWidth - label.length(); j < jj; j++) {
                 rowLabel[i].append(' ');
             }
+            // rowLabel[i].append(String.format("%3d", grammar.allClauses.size() - 1 - clauseIdx) + " : ");
+            rowLabel[i].append(label);
         }
         var emptyRowLabel = new StringBuilder();
-        for (int i = 0; i < marginWidth; i++) {
+        for (int i = 0, ii = rowLabelMaxWidth; i < ii; i++) {
             emptyRowLabel.append(' ');
         }
         var edgeMarkers = new StringBuilder();
@@ -175,7 +184,7 @@ public class ParserInfo {
         }
 
         // Print input index digits
-        for (int j = 0; j < marginWidth; j++) {
+        for (int j = 0; j < rowLabelMaxWidth; j++) {
             System.out.print(' ');
         }
         System.out.print(' ');
@@ -186,7 +195,7 @@ public class ParserInfo {
         System.out.println();
 
         // Print input string
-        for (int i = 0; i < marginWidth; i++) {
+        for (int i = 0; i < rowLabelMaxWidth; i++) {
             System.out.print(' ');
         }
         System.out.print(' ');
@@ -199,7 +208,7 @@ public class ParserInfo {
 
         // Show consumed chars
         if (consumedChars != null) {
-            for (int i = 0; i < marginWidth; i++) {
+            for (int i = 0; i < rowLabelMaxWidth; i++) {
                 System.out.print(' ');
             }
             for (int i = 0; i < input.length(); i++) {
