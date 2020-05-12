@@ -97,7 +97,10 @@ public class ASTNode {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
+        
+        // Uncomment for double-spaced rows
         // buf.append(indentStr + "│\n");
+        
         buf.append(indentStr + (isLastChild ? "└─" : "├─") + label + " : " + startPos + "+" + len + " : \"" + inp
                 + "\"\n");
         if (children != null) {

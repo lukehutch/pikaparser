@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import pikaparser.clause.Clause;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.nonterminal.OneOrMore;
+import pikaparser.grammar.MetaGrammar;
 import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
@@ -19,8 +20,8 @@ public class Match {
     private final Match[] subClauseMatches;
 
     /**
-     * The subclause index of the first matching subclause (will be 0 unless {@link #labeledClause} is a {@link First}, and
-     * the matching clause was not the first subclause).
+     * The subclause index of the first matching subclause (will be 0 unless {@link #labeledClause} is a
+     * {@link First}, and the matching clause was not the first subclause).
      */
     private int firstMatchingSubClauseIdx;
 
@@ -91,9 +92,7 @@ public class Match {
         // For Seq, subClauseMatchIdx pairs subclause labels with subclauses.
         var subClauseLabelIdx = memoKey.clause instanceof OneOrMore ? 0
                 : firstMatchingSubClauseIdx + subClauseMatchIdx;
-        var subClauseASTNodeLabel = memoKey.clause.labeledSubClauses[subClauseLabelIdx] == null ? null
-                : memoKey.clause.labeledSubClauses[subClauseLabelIdx].astNodeLabel;
-        return subClauseASTNodeLabel;
+        return memoKey.clause.labeledSubClauses[subClauseLabelIdx].astNodeLabel;
     }
 
     private void toAST(ASTNode parent, String input) {
@@ -120,7 +119,8 @@ public class Match {
         return root;
     }
 
-    public void printTreeView(String input, String indentStr, String astNodeLabel, boolean isLastChild) {
+    public void renderTreeView(String input, String indentStr, String astNodeLabel, boolean isLastChild,
+            StringBuilder buf) {
         int inpLen = 80;
         String inp = input.substring(memoKey.startPos,
                 Math.min(input.length(), memoKey.startPos + Math.min(len, inpLen)));
@@ -128,32 +128,35 @@ public class Match {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-        // System.out.println(indentStr + "│");
+        
+        // Uncomment for double-spaced rows
+        // buf.append(indentStr + "│\n");
+        
         var ruleNames = memoKey.clause.getRuleNames();
         var toStr = memoKey.clause.toString();
-        if (toStr.startsWith("(") && toStr.endsWith(")")) {
-            toStr = toStr.substring(1, toStr.length() - 1);
-        }
-        System.out.println(indentStr + (isLastChild ? "└─" : "├─") //
+        var astNodeLabelNeedsParens = MetaGrammar.addParensAroundASTNodeLabel(memoKey.clause);
+        buf.append(indentStr + (isLastChild ? "└─" : "├─") //
                 + (ruleNames.isEmpty() ? "" : ruleNames + " <- ") //
-                + (astNodeLabel == null ? "" : astNodeLabel + ":(") //
+                + (astNodeLabel == null ? "" : (astNodeLabel + ":" + (astNodeLabelNeedsParens ? "(" : ""))) //
                 + toStr //
-                + (astNodeLabel == null ? "" : ")") //
+                + (astNodeLabel == null || !astNodeLabelNeedsParens ? "" : ")") //
                 + " : " + memoKey.startPos + "+" + len //
-                + " : \"" + inp + "\"");
+                + " : \"" + inp + "\"\n");
 
         // Recurse to descendants
         var subClauseMatchesToUse = getSubClauseMatches();
         for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
             var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
             var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
-            subClauseMatch.printTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
-                    subClauseMatchIdx == subClauseMatchesToUse.length - 1);
+            subClauseMatch.renderTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
+                    subClauseMatchIdx == subClauseMatchesToUse.length - 1, buf);
         }
     }
 
     public void printTreeView(String input) {
-        printTreeView(input, "", null, true);
+        var buf = new StringBuilder();
+        renderTreeView(input, "", null, true, buf);
+        System.out.println(buf.toString());
     }
 
     public String toStringWithRuleNames() {
@@ -174,16 +177,17 @@ public class Match {
     @Override
     public String toString() {
         StringBuilder buf = new StringBuilder();
-        buf.append(memoKey + "+" + len + " => [ ");
-        var subClauseMatchesToUse = getSubClauseMatches();
-        for (int i = 0; i < subClauseMatchesToUse.length; i++) {
-            var s = subClauseMatchesToUse[i];
-            if (i > 0) {
-                buf.append(" ; ");
-            }
-            buf.append(s.toString());
-        }
-        buf.append(" ]");
+        buf.append(memoKey + "+" + len);
+        //        buf.append(" => [ ");
+        //        var subClauseMatchesToUse = getSubClauseMatches();
+        //        for (int i = 0; i < subClauseMatchesToUse.length; i++) {
+        //            var s = subClauseMatchesToUse[i];
+        //            if (i > 0) {
+        //                buf.append(" ; ");
+        //            }
+        //            buf.append(s.toString());
+        //        }
+        //        buf.append(" ]");
         return buf.toString();
     }
 }

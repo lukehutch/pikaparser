@@ -1,6 +1,7 @@
 package pikaparser.clause.util;
 
 import pikaparser.clause.Clause;
+import pikaparser.grammar.MetaGrammar;
 
 public class LabeledClause {
     public Clause clause;
@@ -10,13 +11,14 @@ public class LabeledClause {
         this.clause = clause;
         this.astNodeLabel = astNodeLabel;
     }
-    
+
     @Override
     public String toString() {
         if (astNodeLabel == null) {
             return clause.toString();
         } else {
-            return astNodeLabel + ":" + clause.toString();  // TODO: check precedence
+            var addParens = MetaGrammar.addParensAroundASTNodeLabel(clause);
+            return astNodeLabel + ":" + (addParens ? "(" : "") + clause.toString() + (addParens ? ")" : "");
         }
     }
 }

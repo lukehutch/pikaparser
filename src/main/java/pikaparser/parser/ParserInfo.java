@@ -273,8 +273,10 @@ public class ParserInfo {
                     var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
-                        System.out.println();
-                        match.printTreeView(input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel, true);
+                        var buf = new StringBuilder();
+                        match.renderTreeView(input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel, true,
+                                buf);
+                        System.out.println(buf.toString());
                     }
                     int newEndPos = match.memoKey.startPos + match.len;
                     if (newEndPos > prevEndPos) {

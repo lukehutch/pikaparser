@@ -553,6 +553,26 @@ public class Grammar {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    private static Match matchAndMemoize(MemoKey memoKey, MatchDirection matchDirection, MemoTable memoTable,
+            String input, PriorityBlockingQueue<MemoKey> priorityQueue) {
+        var match = memoKey.clause.match(matchDirection, memoTable, memoKey, input);
+        if (match != null) {
+            // Memoize any new match, and schedule parent clauses for evaluation in the priority queue
+            if (matchDirection == MatchDirection.BOTTOM_UP) {
+                memoTable.addMatch(match, priorityQueue);
+            } else {
+                memoTable.addMatchRecursive(match, priorityQueue);
+            }
+
+            if (DEBUG) {
+                System.out.println("Matched: " + memoKey.toStringWithRuleNames());
+            }
+        } else if (DEBUG) {
+            System.out.println("Failed to match: " + memoKey.toStringWithRuleNames());
+        }
+        return match;
+    }
+
     public MemoTable parse(String input) {
         // The memo table
         var memoTable = new MemoTable();
@@ -575,20 +595,15 @@ public class Grammar {
             // Run lex preprocessing step, top-down, from each character position, skipping to end of each
             // subsequent match
             for (int startPos = 0; startPos < input.length();) {
-                var memoKey = new MemoKey(lexClause, startPos);
                 // Match the lex rule top-down, populating the memo table for subclause matches
-                var match = lexClause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input);
+                var memoKey = new MemoKey(lexClause, startPos);
+                var match = matchAndMemoize(memoKey, MatchDirection.TOP_DOWN, memoTable, input, priorityQueue);
                 var matchLen = match != null ? match.len : 0;
-                if (match != null) {
-                    if (DEBUG) {
-                        System.out.println("Lex match: " + match.toStringWithRuleNames());
-                    }
-                    // Memoize the subtree of matches, once a lex rule matches 
-                    memoTable.addMatchRecursive(match, priorityQueue);
-                } else {
-                    if (DEBUG) {
-                        System.out.println("Lex rule did not match at input position " + startPos);
-                    }
+
+                // Always move forward at least one character
+                if (DEBUG && matchLen == 0) {
+                    System.out.println((match == null ? "*** Lex rule did not match: "
+                            : "*** Lex rule matched zero characters: ") + memoKey.toStringWithRuleNames());
                 }
                 startPos += Math.max(1, matchLen);
             }
@@ -602,20 +617,10 @@ public class Grammar {
                             // Don't match Nothing everywhere -- it always matches
                             && !(clause instanceof Nothing))
                     .forEach(clause -> {
-                        // Terminals are matched top down
                         for (int startPos = 0; startPos < input.length(); startPos++) {
-                            var memoKey = new MemoKey(clause, startPos);
-                            var match = clause.match(MatchDirection.TOP_DOWN, memoTable, memoKey, input);
-                            if (match != null) {
-                                if (DEBUG) {
-                                    System.out.println("Initial terminal match: " + match.toStringWithRuleNames());
-                                }
-                                memoTable.addMatch(match, priorityQueue);
-                            }
-                            if (clause instanceof Start) {
-                                // Only match Start in the first position
-                                break;
-                            }
+                            // Terminals ignore the MatchDirection parameter
+                            matchAndMemoize(new MemoKey(clause, startPos), MatchDirection.BOTTOM_UP, memoTable,
+                                    input, priorityQueue);
                         }
                     });
         }
@@ -624,18 +629,7 @@ public class Grammar {
         while (!priorityQueue.isEmpty()) {
             // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
             // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
-            var memoKey = priorityQueue.remove();
-            var match = memoKey.clause.match(MatchDirection.BOTTOM_UP, memoTable, memoKey, input);
-            if (match != null) {
-                // Memoize any new match, and schedule parent clauses for evaluation in the priority queue
-                memoTable.addMatch(match, priorityQueue);
-
-                if (DEBUG) {
-                    System.out.println("Matched: " + memoKey.toStringWithRuleNames());
-                }
-            } else if (DEBUG) {
-                System.out.println("Failed to match: " + memoKey.toStringWithRuleNames());
-            }
+            matchAndMemoize(priorityQueue.remove(), MatchDirection.BOTTOM_UP, memoTable, input, priorityQueue);
         }
         return memoTable;
     }

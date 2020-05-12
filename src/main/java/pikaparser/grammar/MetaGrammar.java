@@ -441,7 +441,7 @@ public class MetaGrammar {
 
         //        ParserInfo.printParseResult("GRAMMAR", grammar, memoTable, input,
         //                new String[] { "GRAMMAR", "RULE", "CLAUSE[0]" }, /* showAllMatches = */ false);
-
+        //
         //        System.out.println("\nParsed grammar:");
         //        for (var clause : MetaGrammar.grammar.allClauses) {
         //            System.out.println("    " + clause.toStringWithRuleNames());
