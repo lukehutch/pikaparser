@@ -143,26 +143,33 @@ public class ParserInfo {
         for (var row = 0; row < clauseForRow.size(); row++) {
             var matches = matchesForRow.get(row);
 
-            StringBuilder treeChars = new StringBuilder();
-            treeChars.append(edgeMarkers);
+            StringBuilder rowTreeChars = new StringBuilder();
+            rowTreeChars.append(edgeMarkers);
+            var zeroLenMatchIdxs = new ArrayList<Integer>();
             for (var ent : matches.entrySet()) {
                 var match = ent.getValue();
                 var startIdx = match.memoKey.startPos;
                 var endIdx = startIdx + match.len;
 
-                for (var i = startIdx; i <= endIdx; i++) {
-                    char chrLeft = treeChars.charAt(i * 2);
-                    treeChars.setCharAt(i * 2,
-                            i == startIdx
-                                    ? (chrLeft == '│' ? '├' : chrLeft == '┤' ? '┼' : chrLeft == '┐' ? '┬' : '┌')
-                                    : i == endIdx ? (chrLeft == '│' ? '┤' : '┐') : '─');
-                    if (i < endIdx) {
-                        treeChars.setCharAt(i * 2 + 1, '─');
+                if (startIdx == endIdx) {
+                    // Zero-length match
+                    zeroLenMatchIdxs.add(startIdx);
+                } else {
+                    // Match consumes 1 or more characters
+                    for (var i = startIdx; i <= endIdx; i++) {
+                        char chrLeft = rowTreeChars.charAt(i * 2);
+                        rowTreeChars.setCharAt(i * 2,
+                                i == startIdx
+                                        ? (chrLeft == '│' ? '├' : chrLeft == '┤' ? '┼' : chrLeft == '┐' ? '┬' : '┌')
+                                        : i == endIdx ? (chrLeft == '│' ? '┤' : '┐') : '─');
+                        if (i < endIdx) {
+                            rowTreeChars.setCharAt(i * 2 + 1, '─');
+                        }
                     }
                 }
             }
             System.out.print(emptyRowLabel);
-            System.out.println(treeChars);
+            System.out.println(rowTreeChars);
 
             for (var ent : matches.entrySet()) {
                 var match = ent.getValue();
@@ -171,18 +178,21 @@ public class ParserInfo {
                 edgeMarkers.setCharAt(startIdx * 2, '│');
                 edgeMarkers.setCharAt(endIdx * 2, '│');
             }
-            treeChars.setLength(0);
-            treeChars.append(edgeMarkers);
+            rowTreeChars.setLength(0);
+            rowTreeChars.append(edgeMarkers);
             for (var ent : matches.entrySet()) {
                 var match = ent.getValue();
                 var startIdx = match.memoKey.startPos;
                 var endIdx = startIdx + match.len;
                 for (int i = startIdx; i < endIdx; i++) {
-                    treeChars.setCharAt(i * 2 + 1, input.charAt(i));
+                    rowTreeChars.setCharAt(i * 2 + 1, input.charAt(i));
                 }
             }
+            for (var zeroLenMatchIdx : zeroLenMatchIdxs) {
+                rowTreeChars.setCharAt(zeroLenMatchIdx * 2, '▮');
+            }
             System.out.print(rowLabel[row]);
-            System.out.println(treeChars);
+            System.out.println(rowTreeChars);
         }
 
         // Print input index digits
