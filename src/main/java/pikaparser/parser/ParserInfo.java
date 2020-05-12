@@ -9,7 +9,7 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import pikaparser.clause.Clause;
-import pikaparser.clause.Terminal;
+import pikaparser.clause.terminal.Terminal;
 import pikaparser.grammar.Grammar;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoTable;

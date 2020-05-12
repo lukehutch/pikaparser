@@ -1,5 +1,7 @@
-package pikaparser.clause;
+package pikaparser.clause.nonterminal;
 
+import pikaparser.clause.Clause;
+import pikaparser.clause.terminal.Nothing;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;

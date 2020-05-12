@@ -1,4 +1,6 @@
-package pikaparser.clause;
+package pikaparser.clause.util;
+
+import pikaparser.clause.Clause;
 
 public class LabeledClause {
     public Clause clause;

@@ -1,23 +1,23 @@
 package pikaparser.grammar;
 
 import static java.util.Map.entry;
-import static pikaparser.clause.ClauseFactory.*;
+import static pikaparser.clause.util.ClauseFactory.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
-import pikaparser.clause.First;
-import pikaparser.clause.FollowedBy;
-import pikaparser.clause.Longest;
-import pikaparser.clause.NotFollowedBy;
-import pikaparser.clause.OneOrMore;
-import pikaparser.clause.RuleRef;
-import pikaparser.clause.Seq;
-import pikaparser.clause.Terminal;
+import pikaparser.clause.aux.ASTNodeLabel;
+import pikaparser.clause.aux.RuleRef;
+import pikaparser.clause.nonterminal.First;
+import pikaparser.clause.nonterminal.FollowedBy;
+import pikaparser.clause.nonterminal.Longest;
+import pikaparser.clause.nonterminal.NotFollowedBy;
+import pikaparser.clause.nonterminal.OneOrMore;
+import pikaparser.clause.nonterminal.Seq;
+import pikaparser.clause.terminal.Terminal;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.ParserInfo;

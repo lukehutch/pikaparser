@@ -1,11 +1,12 @@
-package pikaparser.clause;
+package pikaparser.clause.nonterminal;
 
+import pikaparser.clause.Clause;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public class OneOrMore extends Clause {
-    OneOrMore(Clause subClause) {
+    public OneOrMore(Clause subClause) {
         super(new Clause[] { subClause });
     }
 

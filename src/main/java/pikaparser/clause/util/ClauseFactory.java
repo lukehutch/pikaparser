@@ -1,8 +1,21 @@
-package pikaparser.clause;
+package pikaparser.clause.util;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import pikaparser.clause.Clause;
+import pikaparser.clause.aux.ASTNodeLabel;
+import pikaparser.clause.aux.RuleRef;
+import pikaparser.clause.nonterminal.First;
+import pikaparser.clause.nonterminal.FollowedBy;
+import pikaparser.clause.nonterminal.Longest;
+import pikaparser.clause.nonterminal.NotFollowedBy;
+import pikaparser.clause.nonterminal.OneOrMore;
+import pikaparser.clause.nonterminal.Seq;
+import pikaparser.clause.terminal.CharSeq;
+import pikaparser.clause.terminal.CharSet;
+import pikaparser.clause.terminal.Nothing;
+import pikaparser.clause.terminal.Start;
 import pikaparser.grammar.Rule;
 import pikaparser.grammar.Rule.Associativity;
 

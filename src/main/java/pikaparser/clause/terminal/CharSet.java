@@ -1,4 +1,4 @@
-package pikaparser.clause;
+package pikaparser.clause.terminal;
 
 import java.util.ArrayList;
 import java.util.Collection;

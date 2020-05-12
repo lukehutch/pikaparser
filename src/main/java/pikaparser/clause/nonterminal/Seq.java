@@ -1,8 +1,9 @@
-package pikaparser.clause;
+package pikaparser.clause.nonterminal;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import pikaparser.clause.Clause;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;

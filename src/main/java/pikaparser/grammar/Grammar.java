@@ -13,12 +13,12 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.Clause.MatchDirection;
-import pikaparser.clause.First;
-import pikaparser.clause.LabeledClause;
-import pikaparser.clause.Nothing;
-import pikaparser.clause.RuleRef;
-import pikaparser.clause.Start;
-import pikaparser.clause.Terminal;
+import pikaparser.clause.aux.RuleRef;
+import pikaparser.clause.nonterminal.First;
+import pikaparser.clause.terminal.Nothing;
+import pikaparser.clause.terminal.Start;
+import pikaparser.clause.terminal.Terminal;
+import pikaparser.clause.util.LabeledClause;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;

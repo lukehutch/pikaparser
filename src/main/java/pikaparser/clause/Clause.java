@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import pikaparser.clause.aux.ASTNodeLabel;
+import pikaparser.clause.nonterminal.First;
+import pikaparser.clause.nonterminal.Longest;
+import pikaparser.clause.terminal.Nothing;
+import pikaparser.clause.util.LabeledClause;
 import pikaparser.grammar.MetaGrammar;
 import pikaparser.grammar.Rule;
 import pikaparser.memotable.Match;

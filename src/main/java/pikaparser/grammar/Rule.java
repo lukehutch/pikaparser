@@ -1,8 +1,8 @@
 package pikaparser.grammar;
 
-import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
-import pikaparser.clause.LabeledClause;
+import pikaparser.clause.aux.ASTNodeLabel;
+import pikaparser.clause.util.LabeledClause;
 
 public class Rule {
     public String ruleName;

@@ -1,4 +1,4 @@
-package pikaparser.clause;
+package pikaparser.clause.terminal;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;

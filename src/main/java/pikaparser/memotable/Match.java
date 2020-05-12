@@ -3,8 +3,8 @@ package pikaparser.memotable;
 import java.util.ArrayList;
 
 import pikaparser.clause.Clause;
-import pikaparser.clause.First;
-import pikaparser.clause.OneOrMore;
+import pikaparser.clause.nonterminal.First;
+import pikaparser.clause.nonterminal.OneOrMore;
 import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
