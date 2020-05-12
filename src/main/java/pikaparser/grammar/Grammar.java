@@ -11,10 +11,10 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.PriorityBlockingQueue;
 
-import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
 import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.First;
+import pikaparser.clause.LabeledClause;
 import pikaparser.clause.Nothing;
 import pikaparser.clause.RuleRef;
 import pikaparser.clause.Start;
@@ -47,7 +47,8 @@ public class Grammar {
             if (rule.ruleName == null) {
                 throw new IllegalArgumentException("All rules must be named");
             }
-            if (rule.clause instanceof RuleRef && ((RuleRef) rule.clause).refdRuleName.equals(rule.ruleName)) {
+            if (rule.labeledClause.clause instanceof RuleRef
+                    && ((RuleRef) rule.labeledClause.clause).refdRuleName.equals(rule.ruleName)) {
                 // Make sure rule doesn't refer only to itself
                 throw new IllegalArgumentException(
                         "Rule cannot refer to only itself: " + rule.ruleName + "[" + rule.precedence + "]");
@@ -61,7 +62,7 @@ public class Grammar {
             // Make sure there are no cycles in the grammar before RuleRef instances have been replaced
             // with direct references (checking once up front simplifies other recursive routines, so that
             // they don't have to check for infinite recursion)
-            checkNoRefCycles(rule.clause, rule.ruleName, new HashSet<Clause>());
+            checkNoRefCycles(rule.labeledClause.clause, rule.ruleName, new HashSet<Clause>());
         }
         allRules = new ArrayList<>(rules);
         var ruleNameToLowestPrecedenceLevelRuleName = new HashMap<String, String>();
@@ -74,21 +75,6 @@ public class Grammar {
                 handlePrecedence(ruleName, rulesWithName, lowestPrecedenceClauses,
                         ruleNameToLowestPrecedenceLevelRuleName);
             }
-        }
-
-        // Lift AST node labels into their parent clause' subClauseASTNodeLabel array, or into the rule
-        for (var rule : allRules) {
-            // Lift AST node label from clause into astNodeLabel field in rule
-            while (rule.clause instanceof ASTNodeLabel) {
-                if (rule.astNodeLabel == null) {
-                    rule.astNodeLabel = ((ASTNodeLabel) rule.clause).astNodeLabel;
-                }
-                // Drop the ASTNodeLabel node
-                rule.clause = rule.clause.subClauses[0];
-            }
-
-            // Lift AST node labels from subclauses into subClauseASTNodeLabels array in parent
-            liftASTNodeLabels(rule.clause);
         }
 
         // If there is more than one precedence level for a rule, the handlePrecedence call above modifies
@@ -105,7 +91,7 @@ public class Grammar {
 
         // Register each rule with its toplevel clause (used in the clause's toString() method)
         for (var rule : allRules) {
-            rule.clause.registerRule(rule);
+            rule.labeledClause.clause.registerRule(rule);
         }
 
         // Intern clauses based on their toString() value, coalescing shared sub-clauses into a DAG, so that
@@ -115,14 +101,14 @@ public class Grammar {
         // Clause references, toString() doesn't get stuck in an infinite loop.
         Map<String, Clause> toStringToClause = new HashMap<>();
         for (var rule : allRules) {
-            rule.clause = intern(rule.clause, toStringToClause);
+            rule.labeledClause.clause = intern(rule.labeledClause.clause, toStringToClause);
         }
 
         // Resolve each RuleRef into a direct reference to the referenced clause
         Set<Clause> clausesVisitedResolveRuleRefs = new HashSet<>();
         for (var rule : allRules) {
-            resolveRuleRefs(rule, ruleNameWithPrecedenceToRule, ruleNameToLowestPrecedenceLevelRuleName,
-                    clausesVisitedResolveRuleRefs);
+            resolveRuleRefs(rule.labeledClause, ruleNameWithPrecedenceToRule,
+                    ruleNameToLowestPrecedenceLevelRuleName, clausesVisitedResolveRuleRefs);
         }
 
         if (lexRuleName != null) {
@@ -132,20 +118,20 @@ public class Grammar {
                 throw new IllegalArgumentException("Unknown lex rule name: " + lexRuleName);
             }
             // Check the lex rule does not contain any cycles
-            checkNoDAGCycles(lexRule.clause);
-            lexClause = lexRule.clause;
+            checkNoDAGCycles(lexRule.labeledClause.clause);
+            lexClause = lexRule.labeledClause.clause;
         }
 
         // Find toplevel clauses (clauses that are not a subclause of any other clause)
         var allClausesUnordered = new ArrayList<Clause>();
         var visited1 = new HashSet<Clause>();
         for (var rule : allRules) {
-            findReachableClauses(rule.clause, visited1, allClausesUnordered);
+            findReachableClauses(rule.labeledClause.clause, visited1, allClausesUnordered);
         }
         var topLevelClauses = new HashSet<>(allClausesUnordered);
         for (var clause : allClausesUnordered) {
-            for (var subClause : clause.subClauses) {
-                topLevelClauses.remove(subClause);
+            for (var labeledSubClause : clause.labeledSubClauses) {
+                topLevelClauses.remove(labeledSubClause.clause);
             }
         }
         var topLevelClausesOrdered = new ArrayList<>(topLevelClauses);
@@ -164,7 +150,7 @@ public class Grammar {
             findCycleHeadClauses(clause, discovered, finished, cycleHeadClauses);
         }
         for (var rule : allRules) {
-            findCycleHeadClauses(rule.clause, discovered, finished, cycleHeadClauses);
+            findCycleHeadClauses(rule.labeledClause.clause, discovered, finished, cycleHeadClauses);
         }
         topLevelClausesOrdered.addAll(cycleHeadClauses);
 
@@ -195,42 +181,11 @@ public class Grammar {
     /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
     private static void findReachableClauses(Clause clause, HashSet<Clause> visited, List<Clause> revTopoOrderOut) {
         if (visited.add(clause)) {
-            for (var subClause : clause.subClauses) {
+            for (var labeledSubClause : clause.labeledSubClauses) {
+                var subClause = labeledSubClause.clause;
                 findReachableClauses(subClause, visited, revTopoOrderOut);
             }
             revTopoOrderOut.add(clause);
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Label subclause positions with the AST node label from any {@link CreateASTNode} nodes in each subclause
-     * position.
-     */
-    private static void liftASTNodeLabels(Clause clause) {
-        for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
-            Clause subClause = clause.subClauses[subClauseIdx];
-            if (subClause instanceof ASTNodeLabel) {
-                // Copy any AST node labels from subclause node to subClauseASTNodeLabels array within the parent
-                var subClauseASTNodeLabel = ((ASTNodeLabel) subClause).astNodeLabel;
-                if (subClauseASTNodeLabel != null) {
-                    if (clause.subClauseASTNodeLabels == null) {
-                        // Alloc array for subclause node labels, if not already done
-                        clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
-                    }
-                    if (clause.subClauseASTNodeLabels[subClauseIdx] == null) {
-                        // Update subclause label, if it hasn't already been labeled
-                        clause.subClauseASTNodeLabels[subClauseIdx] = subClauseASTNodeLabel;
-                    }
-                } else {
-                    throw new IllegalArgumentException(ASTNodeLabel.class.getSimpleName() + " is null");
-                }
-                // Remove the ASTNodeLabel node 
-                clause.subClauses[subClauseIdx] = subClause.subClauses[0];
-            }
-            // Recurse
-            liftASTNodeLabels(subClause);
         }
     }
 
@@ -244,7 +199,8 @@ public class Grammar {
                     "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
         }
         discovered.add(clause);
-        for (var subClause : clause.subClauses) {
+        for (var labeledSubClause : clause.labeledSubClauses) {
+            var subClause = labeledSubClause.clause;
             if (discovered.contains(subClause)) {
                 // Reached a cycle
                 cycleHeadClausesOut.add(subClause);
@@ -266,9 +222,11 @@ public class Grammar {
                     "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
         }
         discovered.add(clause);
-        for (var subClause : clause.subClauses) {
+        for (var labeledSubClause : clause.labeledSubClauses) {
+            var subClause = labeledSubClause.clause;
             if (discovered.contains(subClause)) {
-                throw new IllegalArgumentException("Lex rule's clause tree contains a cycle at " + subClause);
+                throw new IllegalArgumentException(
+                        "Lex rule's clause tree contains a cycle at " + labeledSubClause);
             }
             if (!finished.contains(subClause)) {
                 checkNoDAGCycles(subClause, discovered, finished);
@@ -285,7 +243,8 @@ public class Grammar {
 
     private static void checkNoRefCycles(Clause clause, String selfRefRuleName, Set<Clause> visited) {
         if (visited.add(clause)) {
-            for (Clause subClause : clause.subClauses) {
+            for (var labeledSubClause : clause.labeledSubClauses) {
+                var subClause = labeledSubClause.clause;
                 checkNoRefCycles(subClause, selfRefRuleName, visited);
             }
         } else {
@@ -302,7 +261,8 @@ public class Grammar {
             return 1;
         } else {
             var numSelfRefs = 0;
-            for (var subClause : clause.subClauses) {
+            for (var labeledSubClause : clause.labeledSubClauses) {
+                var subClause = labeledSubClause.clause;
                 numSelfRefs += countRuleSelfReferences(subClause, ruleNameWithoutPrecedence);
             }
             return numSelfRefs;
@@ -311,43 +271,45 @@ public class Grammar {
 
     private static int rewriteSelfReferences(Clause clause, Associativity associativity, int numSelfRefsSoFar,
             int numSelfRefs, String selfRefRuleName, String currPrecRuleName, String nextHighestPrecRuleName) {
-        if (clause instanceof RuleRef && ((RuleRef) clause).refdRuleName.equals(selfRefRuleName)) {
-            // For leftmost self-ref of a left-associative rule, or rightmost self-ref of a right-associative rule,
-            // replace self-reference with a reference to the same precedence level; for all other self-references
-            // and when there is no specified precedence, replace self-references with a reference to the next
-            // highest precedence level.
-            var referToCurrPrecLevel = associativity == Associativity.LEFT && numSelfRefsSoFar == 0
-                    || associativity == Associativity.RIGHT && numSelfRefsSoFar == numSelfRefs - 1;
-            ((RuleRef) clause).refdRuleName = referToCurrPrecLevel ? currPrecRuleName : nextHighestPrecRuleName;
-            return numSelfRefsSoFar + 1;
-        } else {
-            var numSelfRefsCumul = numSelfRefsSoFar;
-            for (var subClause : clause.subClauses) {
-                numSelfRefsCumul = rewriteSelfReferences(subClause, associativity, numSelfRefsCumul, numSelfRefs,
-                        selfRefRuleName, currPrecRuleName, nextHighestPrecRuleName);
-            }
-            return numSelfRefsCumul;
-        }
-    }
-
-    private static boolean rewriteSelfReference(Clause clause, String selfRefRuleName, String currPrecRuleName,
-            String nextHighestPrecRuleName) {
-        for (int i = 0; i < clause.subClauses.length; i++) {
-            var subClause = clause.subClauses[i];
-            if (subClause instanceof RuleRef && ((RuleRef) subClause).refdRuleName.equals(selfRefRuleName)) {
-                // E[i] <- X E Y  =>  E[i] <- X (E[i] / E[(i+1)%N]) Y
-                clause.subClauses[i] = new First(new RuleRef(currPrecRuleName),
-                        new RuleRef(nextHighestPrecRuleName));
-                // Break out of recursion, since there is only one self-reference
-                return true;
-            } else {
-                if (rewriteSelfReference(subClause, selfRefRuleName, currPrecRuleName, nextHighestPrecRuleName)) {
-                    // Break out of recursion
-                    return true;
+        // Terminate recursion when all self-refs have been replaced
+        if (numSelfRefsSoFar < numSelfRefs) {
+            for (int i = 0; i < clause.labeledSubClauses.length; i++) {
+                var labeledSubClause = clause.labeledSubClauses[i];
+                var subClause = labeledSubClause.clause;
+                if (subClause instanceof RuleRef) {
+                    if (((RuleRef) subClause).refdRuleName.equals(selfRefRuleName)) {
+                        if (numSelfRefs >= 2) {
+                            // Change name of self-references to implement precedence climbing:
+                            // For leftmost operand of left-recursive rule:
+                            // E[i] <- E X E  =>  E[i] = E[i] X E[i+1]
+                            // For rightmost operand of right-recursive rule:
+                            // E[i] <- E X E  =>  E[i] = E[i+1] X E[i]
+                            // For non-associative rule:
+                            // E[i] = E E  =>  E[i] = E[i+1] E[i+1]
+                            clause.labeledSubClauses[i].clause = new RuleRef( //
+                                    (associativity == Associativity.LEFT && numSelfRefsSoFar == 0)
+                                            || (associativity == Associativity.RIGHT
+                                                    && numSelfRefsSoFar == numSelfRefs - 1) //
+                                                            ? currPrecRuleName
+                                                            : nextHighestPrecRuleName);
+                        } else /* numSelfRefs == 1 */ {
+                            // Move subclause (and its AST node label, if any) inside a First clause that
+                            // climbs precedence to the next level:
+                            // E[i] <- X E Y  =>  E[i] <- X (E[i] / E[(i+1)%N]) Y
+                            ((RuleRef) subClause).refdRuleName = currPrecRuleName;
+                            clause.labeledSubClauses[i].clause = new First(subClause,
+                                    new RuleRef(nextHighestPrecRuleName));
+                        }
+                        numSelfRefsSoFar++;
+                    }
+                    // Else don't rewrite the RuleRef, it is not a self-ref
+                } else {
+                    numSelfRefsSoFar = rewriteSelfReferences(subClause, associativity, numSelfRefsSoFar,
+                            numSelfRefs, selfRefRuleName, currPrecRuleName, nextHighestPrecRuleName);
                 }
             }
         }
-        return false;
+        return numSelfRefsSoFar;
     }
 
     /**
@@ -388,50 +350,44 @@ public class Grammar {
             rule.ruleName += "[" + rule.precedence + "]";
         }
 
-        // Make precedence levels do not just contain a self-reference and nothing else
-        for (int precedenceIdx = 0; precedenceIdx < numPrecedenceLevels; precedenceIdx++) {
-            var rule = precedenceOrder.get(precedenceIdx);
-            if (rule.clause instanceof RuleRef
-                    && ((RuleRef) rule.clause).refdRuleName.equals(ruleNameWithoutPrecedence)) {
-                throw new IllegalArgumentException(
-                        "Rule " + rule.ruleName + " should not contain only a self-reference to "
-                                + ruleNameWithoutPrecedence + " and nothing else");
-            }
-        }
-
         // Transform grammar rule to handle precence
         for (int precedenceIdx = 0; precedenceIdx < numPrecedenceLevels; precedenceIdx++) {
             var rule = precedenceOrder.get(precedenceIdx);
 
             // Count the number of self-reference operands
-            var numSelfRefs = countRuleSelfReferences(rule.clause, ruleNameWithoutPrecedence);
+            var numSelfRefs = countRuleSelfReferences(rule.labeledClause.clause, ruleNameWithoutPrecedence);
 
             var currPrecRuleName = rule.ruleName;
             var nextHighestPrecRuleName = precedenceOrder.get((precedenceIdx + 1) % numPrecedenceLevels).ruleName;
 
             // If a rule has 2+ self-references, and rule is associative, need rewrite rule for associativity
-            if (numSelfRefs >= 2) {
-                // Rewrite self-references to higher precedence or left- and right-recursive forms
-                rewriteSelfReferences(rule.clause, rule.associativity, 0, numSelfRefs, ruleNameWithoutPrecedence,
-                        currPrecRuleName, nextHighestPrecRuleName);
-            } else if (numSelfRefs == 1) {
-                // If there is only one self-reference, replace it with a reference to the next highest
-                // level of precedence
-                rewriteSelfReference(rule.clause, ruleNameWithoutPrecedence, currPrecRuleName,
-                        nextHighestPrecRuleName);
+            if (numSelfRefs >= 1) {
+                // Rewrite self-references to higher precedence or left- and right-recursive forms.
+                // (the toplevel clause of the rule, rule.labeledClause.clause, can't be a self-reference,
+                // since we already checked for that, and IllegalArgumentException would have been thrown.)
+                rewriteSelfReferences(rule.labeledClause.clause, rule.associativity, 0, numSelfRefs,
+                        ruleNameWithoutPrecedence, currPrecRuleName, nextHighestPrecRuleName);
             }
 
             // Defer to next highest level of precedence if the rule doesn't match, except at the highest level of
             // precedence, which is assumed to be a precedence-breaking pattern (like parentheses), so should not
             // defer back to the lowest precedence level unless the pattern itself matches
             if (precedenceIdx < numPrecedenceLevels - 1) {
-                rule.clause = new First(rule.clause, new RuleRef(nextHighestPrecRuleName));
+                // Move rule's toplevel clause (and any AST node label it has) into the first subclause of
+                // a First clause that fails over to the next highest precedence level
+                var first = new First(rule.labeledClause.clause, new RuleRef(nextHighestPrecRuleName));
+                // Move any AST node label down into first subclause of new First clause, so that label doesn't
+                // apply to the final failover rule reference
+                first.labeledSubClauses[0].astNodeLabel = rule.labeledClause.astNodeLabel;
+                rule.labeledClause.astNodeLabel = null;
+                // Replace rule clause with new First clause
+                rule.labeledClause.clause = first;
             }
         }
 
         // Map the bare rule name (without precedence suffix) to the lowest precedence level rule name
         var lowestPrecRule = precedenceOrder.get(0);
-        lowestPrecedenceClauses.add(lowestPrecRule.clause);
+        lowestPrecedenceClauses.add(lowestPrecRule.labeledClause.clause);
         ruleNameToLowestPrecedenceLevelRuleName.put(ruleNameWithoutPrecedence, lowestPrecRule.ruleName);
     }
 
@@ -444,8 +400,8 @@ public class Grammar {
      */
     private static Clause intern(Clause clause, Map<String, Clause> toStringToClause) {
         // Call toString() on (and intern) subclauses, bottom-up
-        for (int i = 0; i < clause.subClauses.length; i++) {
-            clause.subClauses[i] = intern(clause.subClauses[i], toStringToClause);
+        for (int i = 0; i < clause.labeledSubClauses.length; i++) {
+            clause.labeledSubClauses[i].clause = intern(clause.labeledSubClauses[i].clause, toStringToClause);
         }
         // Call toString after recursing to child nodes
         var toStr = clause.toString();
@@ -460,90 +416,39 @@ public class Grammar {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
-    private static void resolveRuleRefs(Clause clause, Map<String, Rule> ruleNameToRule,
+    private static void resolveRuleRefs(LabeledClause labeledClause, Map<String, Rule> ruleNameToRule,
             Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
-        if (visited.add(clause)) {
-            for (int subClauseIdx = 0; subClauseIdx < clause.subClauses.length; subClauseIdx++) {
-                Clause subClause = clause.subClauses[subClauseIdx];
-                if (subClause instanceof RuleRef) {
-                    // Look up rule from name in RuleRef
-                    String refdRuleName = ((RuleRef) subClause).refdRuleName;
+        if (labeledClause.clause instanceof RuleRef) {
+            // Look up rule from name in RuleRef
+            String refdRuleName = ((RuleRef) labeledClause.clause).refdRuleName;
 
-                    // Set current clause to a direct reference to the referenced rule
-                    var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
-                    var refdRule = ruleNameToRule
-                            .get(lowestPrecRuleName != null ? lowestPrecRuleName : refdRuleName);
-                    if (refdRule == null) {
-                        throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
-                    }
-                    clause.subClauses[subClauseIdx] = refdRule.clause;
+            // Check if the rule is the reference to the lowest precedence rule of a precedence hierarchy
+            var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
 
-                    // Copy across AST node label, if any
-                    if (refdRule.astNodeLabel != null) {
-                        if (clause.subClauseASTNodeLabels == null) {
-                            // Alloc array for subclause node labels, if not already done
-                            clause.subClauseASTNodeLabels = new String[clause.subClauses.length];
-                        }
-                        if (clause.subClauseASTNodeLabels[subClauseIdx] == null) {
-                            // Update subclause label, if it hasn't already been labeled
-                            clause.subClauseASTNodeLabels[subClauseIdx] = refdRule.astNodeLabel;
-                        }
-                    }
-                    // Stop recursing at RuleRef
-                } else {
-                    // Recurse through subclause tree if subclause was not a RuleRef 
-                    resolveRuleRefs(subClause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName, visited);
-                }
-            }
-        }
-    }
-
-    /** Resolve {@link RuleRef} clauses to a reference to the named rule. */
-    private static void resolveRuleRefs(Rule rule, Map<String, Rule> ruleNameToRule,
-            Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
-        if (rule.clause instanceof RuleRef) {
-            // Follow a chain of toplevel RuleRef instances
-            Set<Clause> chainVisited = new HashSet<>();
-            var currClause = rule.clause;
-            while (currClause instanceof RuleRef) {
-                if (!chainVisited.add(currClause)) {
-                    throw new IllegalArgumentException(
-                            "Cycle in " + RuleRef.class.getSimpleName() + " references for rule " + rule.ruleName);
-                }
-                // Look up rule clause from name in RuleRef
-                String refdRuleName = ((RuleRef) currClause).refdRuleName;
-
-                // Referenced rule group is the same as the current rule group, and there is only one level
-                // of precedence for rule group: R <- R
-                if (refdRuleName.equals(rule.ruleName)) {
-                    throw new IllegalArgumentException("Rule references only itself: " + rule.ruleName);
-                }
-
-                // Use lowest precedence level for rule, if rule refers to a rule with multiple precedence levels
-                var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
-                var refdRule = ruleNameToRule.get(lowestPrecRuleName != null ? lowestPrecRuleName : refdRuleName);
-                if (refdRule == null) {
-                    throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
-                }
-
-                // Else Set current clause to the base clause of the referenced rule
-                currClause = refdRule.clause;
-
-                // If the referenced rule creates an AST node, add the AST node label to the rule
-                if (rule.astNodeLabel == null) {
-                    rule.astNodeLabel = refdRule.astNodeLabel;
-                }
-
-                // Record rule name in the rule's toplevel clause, for toString
-                currClause.registerRule(rule);
+            // Look up Rule based on rule name
+            var refdRule = ruleNameToRule.get(lowestPrecRuleName == null ? refdRuleName : lowestPrecRuleName);
+            if (refdRule == null) {
+                throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
             }
 
-            // Overwrite RuleRef with direct reference to the named rule 
-            rule.clause = currClause;
+            // Set current clause to a direct reference to the referenced rule
+            labeledClause.clause = refdRule.labeledClause.clause;
 
+            // Copy across AST node label, if any
+            if (labeledClause.astNodeLabel == null) {
+                labeledClause.astNodeLabel = refdRule.labeledClause.astNodeLabel;
+            }
+            // Stop recursing at RuleRef
         } else {
-            // Recurse through subclause tree if toplevel clause was not a RuleRef 
-            resolveRuleRefs(rule.clause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName, visited);
+            if (visited.add(labeledClause.clause)) {
+                var labeledSubClauses = labeledClause.clause.labeledSubClauses;
+                for (var subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
+                    var labeledSubClause = labeledSubClauses[subClauseIdx];
+                    // Recurse through subclause tree if subclause was not a RuleRef 
+                    resolveRuleRefs(labeledSubClause, ruleNameToRule, ruleNameToLowestPrecedenceLevelRuleName,
+                            visited);
+                }
+            }
         }
     }
 
@@ -562,8 +467,7 @@ public class Grammar {
      * from the beginning of the string, then looking for the next match after the end of the current match.
      */
     public List<Match> getNonOverlappingMatches(String ruleName, MemoTable memoTable) {
-        var clause = getRule(ruleName).clause;
-        return memoTable.getNonOverlappingMatches(clause);
+        return memoTable.getNonOverlappingMatches(getRule(ruleName).labeledClause.clause);
     }
 
     /**
@@ -571,8 +475,7 @@ public class Grammar {
      * match.
      */
     public List<Integer> getNonMatches(String ruleName, MemoTable memoTable) {
-        var clause = getRule(ruleName).clause;
-        return memoTable.getNonMatchPositions(clause);
+        return memoTable.getNonMatchPositions(getRule(ruleName).labeledClause.clause);
     }
 
     private static void addRange(int startPos, int endPos, String input,
@@ -619,7 +522,7 @@ public class Grammar {
         for (var coverageRuleName : syntaxCoverageRuleNames) {
             var rule = ruleNameWithPrecedenceToRule.get(coverageRuleName);
             if (rule != null) {
-                for (var match : memoTable.getNonOverlappingMatches(rule.clause)) {
+                for (var match : memoTable.getNonOverlappingMatches(rule.labeledClause.clause)) {
                     addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input, parsedRanges);
                 }
             }

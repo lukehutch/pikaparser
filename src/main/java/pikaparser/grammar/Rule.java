@@ -1,13 +1,14 @@
 package pikaparser.grammar;
 
+import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
+import pikaparser.clause.LabeledClause;
 
 public class Rule {
     public String ruleName;
     public final int precedence;
     public final Associativity associativity;
-    public Clause clause;
-    public String astNodeLabel;
+    public LabeledClause labeledClause;
 
     /** Associativity (or null implies no associativity). */
     public static enum Associativity {
@@ -18,7 +19,16 @@ public class Rule {
         this.ruleName = ruleName;
         this.precedence = precedence;
         this.associativity = associativity;
-        this.clause = clause;
+
+        String astNodeLabel = null;
+        var clauseToUse = clause;
+        if (clause instanceof ASTNodeLabel) {
+            // Transfer ASTNodeLabel.astNodeLabel to astNodeLabel
+            astNodeLabel = ((ASTNodeLabel) clause).astNodeLabel;
+            // skip over ASTNodeLabel node when adding subClause to subClauses array
+            clauseToUse = clause.labeledSubClauses[0].clause;
+        }
+        this.labeledClause = new LabeledClause(clauseToUse, astNodeLabel);
     }
 
     public Rule(String ruleName, Clause clause) {
@@ -30,11 +40,9 @@ public class Rule {
     @Override
     public String toString() {
         StringBuilder buf = new StringBuilder();
-        buf.append('(');
         buf.append(ruleName);
         buf.append(" <- ");
-        buf.append(clause.toString());
-        buf.append(')');
+        buf.append(labeledClause.toString());
         return buf.toString();
     }
 }

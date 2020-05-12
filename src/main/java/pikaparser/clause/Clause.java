@@ -8,14 +8,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import pikaparser.grammar.MetaGrammar;
 import pikaparser.grammar.Rule;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
-    public final Clause[] subClauses;
-    public String[] subClauseASTNodeLabels;
+    public final LabeledClause[] labeledSubClauses;
 
     /** Rules this clause is a toplevel clause of */
     public List<Rule> rules;
@@ -35,12 +35,23 @@ public abstract class Clause {
     // -------------------------------------------------------------------------------------------------------------
 
     public Clause(Clause... subClauses) {
-        this.subClauses = subClauses;
         if (subClauses.length > 0 && subClauses[0] instanceof Nothing) {
             // Nothing can't be the first subclause, since we don't trigger upwards expansion of the DP wavefront
             // by seeding the memo table by matching Nothing at every input position, to keep the memo table small
             throw new IllegalArgumentException(
                     Nothing.class.getSimpleName() + " cannot be the first subclause of any clause");
+        }
+        this.labeledSubClauses = new LabeledClause[subClauses.length];
+        for (int i = 0; i < subClauses.length; i++) {
+            var subClause = subClauses[i];
+            String astNodeLabel = null;
+            if (subClause instanceof ASTNodeLabel) {
+                // Transfer ASTNodeLabel.astNodeLabel to NamedClause.astNodeLabel field
+                astNodeLabel = ((ASTNodeLabel) subClause).astNodeLabel;
+                // skip over ASTNodeLabel node when adding subClause to subClauses array
+                subClause = subClause.labeledSubClauses[0].clause;
+            }
+            this.labeledSubClauses[i] = new LabeledClause(subClause, astNodeLabel);
         }
     }
 
@@ -67,7 +78,8 @@ public abstract class Clause {
      * position.
      */
     protected List<Clause> getSeedSubClauses() {
-        return subClauses.length == 0 ? Collections.emptyList() : Arrays.asList(subClauses);
+        return labeledSubClauses.length == 0 ? Collections.emptyList()
+                : Arrays.stream(labeledSubClauses).map(s -> s.clause).collect(Collectors.toList());
     }
 
     /** For all seed subclauses, add backlink from subclause to this clause. */
@@ -109,27 +121,45 @@ public abstract class Clause {
                         rules.stream().map(rule -> rule.ruleName).sorted().collect(Collectors.toList()));
     }
 
+    protected void subClauseToStringWithASTNodeLabel(int subClauseIdx, StringBuilder buf) {
+        var labeledSubClause = labeledSubClauses[subClauseIdx];
+        var subClause = labeledSubClause.clause;
+        var addParens = MetaGrammar.addParensAroundSubClause(this, subClause);
+        if (labeledSubClause.astNodeLabel != null) {
+            buf.append(labeledSubClause.astNodeLabel);
+            buf.append(':');
+            addParens |= MetaGrammar.addParensAroundASTNodeLabel(subClause);
+        }
+        if (addParens) {
+            buf.append('(');
+        }
+        buf.append(labeledSubClauses[subClauseIdx].clause.toString());
+        if (addParens) {
+            buf.append(')');
+        }
+    }
+
+    protected String onlySubClauseToStringWithASTNodeLabel() {
+        var buf = new StringBuilder();
+        subClauseToStringWithASTNodeLabel(0, buf);
+        return buf.toString();
+    }
+
     public String toStringWithRuleNames() {
         if (toStringWithRuleNameCached == null) {
             if (rules != null) {
                 StringBuilder buf = new StringBuilder();
-                buf.append('(');
                 // Add rule names
                 buf.append(getRuleNames());
                 buf.append(" <- ");
                 // Add any AST node labels
-                for (int i = 0, j = 0; i < rules.size(); i++) {
-                    if (j > 0) {
-                        buf.append(", ");
-                    }
+                for (int i = 0; i < rules.size(); i++) {
                     var rule = rules.get(i);
-                    if (rule.astNodeLabel != null) {
-                        buf.append(rule.astNodeLabel + ":");
-                        j++;
+                    if (rule.labeledClause.astNodeLabel != null) {
+                        buf.append(rule.labeledClause.astNodeLabel + ":");
                     }
                 }
                 buf.append(toString());
-                buf.append(')');
                 toStringWithRuleNameCached = buf.toString();
             } else {
                 toStringWithRuleNameCached = toString();

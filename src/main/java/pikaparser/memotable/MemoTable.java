@@ -54,10 +54,10 @@ public class MemoTable {
             // Special case -- if there is no current best match for the memo, but its clause always matches
             // zero or more characters, return a zero-width match.
             int firstMatchingSubClauseIdx = 0;
-            for (int i = 0; i < memoKey.clause.subClauses.length; i++) {
+            for (int i = 0; i < memoKey.clause.labeledSubClauses.length; i++) {
                 // The matching subclause is the first subclause that can match zero characters
                 // (this works for all PEG operator types)
-                if (memoKey.clause.subClauses[i].canMatchZeroChars) {
+                if (memoKey.clause.labeledSubClauses[i].clause.canMatchZeroChars) {
                     firstMatchingSubClauseIdx = i;
                     break;
                 }
@@ -85,8 +85,9 @@ public class MemoTable {
     /** Add a tree of {@link Match} objects to the memo table (used for lex rules that match). */
     public Match addMatchRecursive(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
         addMatch(match, priorityQueue);
-        for (int i = 0; i < match.subClauseMatches.length; i++) {
-            addMatchRecursive(match.subClauseMatches[i], priorityQueue);
+        var subClauseMatches = match.getSubClauseMatchesRaw();
+        for (int i = 0; i < subClauseMatches.length; i++) {
+            addMatchRecursive(subClauseMatches[i], priorityQueue);
         }
         return match;
     }

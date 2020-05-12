@@ -16,10 +16,10 @@ public class Match {
     public final int len;
 
     /** The subclause matches. */
-    public final Match[] subClauseMatches;
+    private final Match[] subClauseMatches;
 
     /**
-     * The subclause index of the first matching subclause (will be 0 unless {@link #clause} is a {@link First}, and
+     * The subclause index of the first matching subclause (will be 0 unless {@link #labeledClause} is a {@link First}, and
      * the matching clause was not the first subclause).
      */
     private int firstMatchingSubClauseIdx;
@@ -32,6 +32,35 @@ public class Match {
         this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
         this.len = len;
         this.subClauseMatches = subClauseMatches;
+    }
+
+    /**
+     * Get subclause matches. Automatically flattens the right-recursive structure of {@link OneOrMore} nodes,
+     * collecting the subclause matches into a single array.
+     */
+    public Match[] getSubClauseMatches() {
+        if (memoKey.clause instanceof OneOrMore) {
+            // Flatten right-recursive structure of OneOrMore parse tree
+            var subClauseMatchesToUse = new ArrayList<Match>();
+            for (Match curr = this;; curr = curr.subClauseMatches[1]) {
+                subClauseMatchesToUse.add(curr.subClauseMatches[0]);
+                if (curr.subClauseMatches.length == 1) {
+                    // Reached end of right-recursive matches
+                    break;
+                }
+            }
+            return subClauseMatchesToUse.toArray(new Match[0]);
+        } else {
+            // For other clause types, just recurse to subclause matches
+            return subClauseMatches;
+        }
+    }
+
+    /**
+     * Get subclause matches, without flattening the right-recursive structure of {@link OneOrMore} nodes.
+     */
+    public Match[] getSubClauseMatchesRaw() {
+        return subClauseMatches;
     }
 
     /**
@@ -62,29 +91,14 @@ public class Match {
         // For Seq, subClauseMatchIdx pairs subclause labels with subclauses.
         var subClauseLabelIdx = memoKey.clause instanceof OneOrMore ? 0
                 : firstMatchingSubClauseIdx + subClauseMatchIdx;
-        var subClauseASTNodeLabel = memoKey.clause.subClauseASTNodeLabels == null ? null
-                : memoKey.clause.subClauseASTNodeLabels[subClauseLabelIdx];
+        var subClauseASTNodeLabel = memoKey.clause.labeledSubClauses[subClauseLabelIdx] == null ? null
+                : memoKey.clause.labeledSubClauses[subClauseLabelIdx].astNodeLabel;
         return subClauseASTNodeLabel;
     }
 
     private void toAST(ASTNode parent, String input) {
-        Match[] subClauseMatchesToUse;
-        if (memoKey.clause instanceof OneOrMore) {
-            // Flatten right-recursive structure of OneOrMore parse tree
-            var subClauseMatchesToUseList = new ArrayList<Match>();
-            for (Match curr = this;; curr = curr.subClauseMatches[1]) {
-                subClauseMatchesToUseList.add(curr.subClauseMatches[0]);
-                if (curr.subClauseMatches.length == 1) {
-                    // Reached end of right-recursive matches
-                    break;
-                }
-            }
-            subClauseMatchesToUse = subClauseMatchesToUseList.toArray(new Match[0]);
-        } else {
-            // For other clause types, just recurse to subclause matches
-            subClauseMatchesToUse = subClauseMatches;
-        }
         // Recurse to descendants
+        var subClauseMatchesToUse = getSubClauseMatches();
         for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
             var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
             var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
@@ -115,28 +129,21 @@ public class Match {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         // System.out.println(indentStr + "│");
-        System.out.println(indentStr + (isLastChild ? "└─" : "├─")
-                + (astNodeLabel == null ? "" : astNodeLabel + ":(") + memoKey.toStringWithRuleNames() + "+" + len
-                + (astNodeLabel == null ? "" : ")") + " : \"" + inp + "\"");
-
-        Match[] subClauseMatchesToUse;
-        if (memoKey.clause instanceof OneOrMore) {
-            // Flatten right-recursive structure of OneOrMore parse tree
-            var subClauseMatchesToUseList = new ArrayList<Match>();
-            for (Match curr = this;; curr = curr.subClauseMatches[1]) {
-                subClauseMatchesToUseList.add(curr.subClauseMatches[0]);
-                if (curr.subClauseMatches.length == 1) {
-                    // Reached end of right-recursive matches
-                    break;
-                }
-            }
-            subClauseMatchesToUse = subClauseMatchesToUseList.toArray(new Match[0]);
-        } else {
-            // For other clause types, just recurse to subclause matches
-            subClauseMatchesToUse = subClauseMatches;
+        var ruleNames = memoKey.clause.getRuleNames();
+        var toStr = memoKey.clause.toString();
+        if (toStr.startsWith("(") && toStr.endsWith(")")) {
+            toStr = toStr.substring(1, toStr.length() - 1);
         }
+        System.out.println(indentStr + (isLastChild ? "└─" : "├─") //
+                + (ruleNames.isEmpty() ? "" : ruleNames + " <- ") //
+                + (astNodeLabel == null ? "" : astNodeLabel + ":(") //
+                + toStr //
+                + (astNodeLabel == null ? "" : ")") //
+                + " : " + memoKey.startPos + "+" + len //
+                + " : \"" + inp + "\"");
 
         // Recurse to descendants
+        var subClauseMatchesToUse = getSubClauseMatches();
         for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
             var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
             var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
@@ -152,8 +159,9 @@ public class Match {
     public String toStringWithRuleNames() {
         StringBuilder buf = new StringBuilder();
         buf.append(memoKey.toStringWithRuleNames() + "+" + len + " => [ ");
-        for (int i = 0; i < subClauseMatches.length; i++) {
-            var s = subClauseMatches[i];
+        var subClauseMatchesToUse = getSubClauseMatches();
+        for (int i = 0; i < subClauseMatchesToUse.length; i++) {
+            var s = subClauseMatchesToUse[i];
             if (i > 0) {
                 buf.append(" ; ");
             }
@@ -167,8 +175,9 @@ public class Match {
     public String toString() {
         StringBuilder buf = new StringBuilder();
         buf.append(memoKey + "+" + len + " => [ ");
-        for (int i = 0; i < subClauseMatches.length; i++) {
-            var s = subClauseMatches[i];
+        var subClauseMatchesToUse = getSubClauseMatches();
+        for (int i = 0; i < subClauseMatchesToUse.length; i++) {
+            var s = subClauseMatchesToUse[i];
             if (i > 0) {
                 buf.append(" ; ");
             }

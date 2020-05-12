@@ -20,7 +20,7 @@ public class ASTNodeLabel extends Clause {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = astNodeLabel + ":(" + subClauses[0] + ")";
+            toStringCached = astNodeLabel + ":(" + labeledSubClauses[0] + ")";
         }
         return toStringCached;
     }

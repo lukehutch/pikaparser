@@ -22,7 +22,7 @@ public class ParserInfo {
         for (int i = match.memoKey.startPos, ii = match.memoKey.startPos + match.len; i < ii; i++) {
             consumedChars.set(i);
         }
-        Match[] subClauseMatches = match.subClauseMatches;
+        Match[] subClauseMatches = match.getSubClauseMatchesRaw();
         if (subClauseMatches != null) {
             for (int i = 0; i < subClauseMatches.length; i++) {
                 Match subClauseMatch = subClauseMatches[i];
@@ -55,7 +55,7 @@ public class ParserInfo {
     private static int findCycleDepth(Match match,
             Map<Integer, Map<Integer, Map<Integer, Match>>> cycleDepthToMatches) {
         var cycleDepth = 0;
-        for (var subClauseMatch : match.subClauseMatches) {
+        for (var subClauseMatch : match.getSubClauseMatches()) {
             var subClauseIsInDifferentCycle = //
                     match.memoKey.clause.clauseIdx <= subClauseMatch.memoKey.clause.clauseIdx;
             var subClauseMatchDepth = findCycleDepth(subClauseMatch, cycleDepthToMatches);
@@ -152,8 +152,10 @@ public class ParserInfo {
 
                 for (var i = startIdx; i <= endIdx; i++) {
                     char chrLeft = treeChars.charAt(i * 2);
-                    treeChars.setCharAt(i * 2, i == startIdx ? (chrLeft == '│' ? '├' : chrLeft == '┤' ? '┼' : '┌')
-                            : i == endIdx ? (chrLeft == '│' ? '┤' : '┐') : '─');
+                    treeChars.setCharAt(i * 2,
+                            i == startIdx
+                                    ? (chrLeft == '│' ? '├' : chrLeft == '┤' ? '┼' : chrLeft == '┐' ? '┬' : '┌')
+                                    : i == endIdx ? (chrLeft == '│' ? '┤' : '┐') : '─');
                     if (i < endIdx) {
                         treeChars.setCharAt(i * 2 + 1, '─');
                     }
@@ -256,11 +258,11 @@ public class ParserInfo {
                 String astNodeLabel = "";
                 if (clause.rules != null) {
                     for (var rule : clause.rules) {
-                        if (rule.astNodeLabel != null) {
+                        if (rule.labeledClause.astNodeLabel != null) {
                             if (!astNodeLabel.isEmpty()) {
                                 astNodeLabel += ",";
                             }
-                            astNodeLabel += rule.astNodeLabel;
+                            astNodeLabel += rule.labeledClause.astNodeLabel;
                         }
                     }
                 }
@@ -284,7 +286,7 @@ public class ParserInfo {
 
         var topLevelRule = grammar.ruleNameWithPrecedenceToRule.get(topLevelRuleName);
         if (topLevelRule != null) {
-            var topLevelRuleClause = topLevelRule.clause;
+            var topLevelRuleClause = topLevelRule.labeledClause.clause;
             var topLevelMatches = memoTable.getNonOverlappingMatches(topLevelRuleClause);
             if (!topLevelMatches.isEmpty()) {
                 for (int i = 0; i < topLevelMatches.size(); i++) {
@@ -295,7 +297,7 @@ public class ParserInfo {
             if (!topLevelMatches.isEmpty()) {
                 System.out.println("\n====================================\n\nFinal AST for rule \""
                         + topLevelRuleName + "\":");
-                var topLevelASTNodeName = topLevelRule.astNodeLabel;
+                var topLevelASTNodeName = topLevelRule.labeledClause.astNodeLabel;
                 if (topLevelASTNodeName == null) {
                     topLevelASTNodeName = "<root>";
                 }

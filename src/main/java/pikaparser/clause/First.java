@@ -15,11 +15,10 @@ public class First extends Clause {
 
     @Override
     public void testWhetherCanMatchZeroChars() {
-        for (int i = 0; i < subClauses.length; i++) {
-            var subClause = subClauses[i];
-            if (subClause.canMatchZeroChars) {
+        for (int i = 0; i < labeledSubClauses.length; i++) {
+            if (labeledSubClauses[i].clause.canMatchZeroChars) {
                 canMatchZeroChars = true;
-                if (i < subClauses.length - 1) {
+                if (i < labeledSubClauses.length - 1) {
                     throw new IllegalArgumentException("Subclause " + i + " of " + First.class.getSimpleName()
                             + " can evaluate to " + Nothing.class.getSimpleName()
                             + ", which means subsequent subclauses will never be matched: " + this);
@@ -31,12 +30,12 @@ public class First extends Clause {
 
     @Override
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
-        for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
-            var subClause = subClauses[subClauseIdx];
-            var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
+        for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
+            var labeledSubClause = labeledSubClauses[subClauseIdx];
+            var subClauseMemoKey = new MemoKey(labeledSubClause.clause, memoKey.startPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
+                    ? labeledSubClause.clause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
                     : memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch != null) {
@@ -51,18 +50,12 @@ public class First extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            buf.append('(');
-            for (int i = 0; i < subClauses.length; i++) {
+            for (int i = 0; i < labeledSubClauses.length; i++) {
                 if (i > 0) {
                     buf.append(" / ");
                 }
-                if (subClauseASTNodeLabels != null && subClauseASTNodeLabels[i] != null) {
-                    buf.append(subClauseASTNodeLabels[i]);
-                    buf.append(':');
-                }
-                buf.append(subClauses[i].toString());
+                subClauseToStringWithASTNodeLabel(i, buf);
             }
-            buf.append(')');
             toStringCached = buf.toString();
         }
         return toStringCached;

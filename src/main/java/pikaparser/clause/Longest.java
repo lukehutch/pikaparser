@@ -15,10 +15,10 @@ public class Longest extends Clause {
 
     @Override
     public void testWhetherCanMatchZeroChars() {
-        for (int i = 0; i < subClauses.length; i++) {
-            Clause subClause = subClauses[i];
-            if (subClause.canMatchZeroChars) {
-                canMatchZeroChars = true;
+        canMatchZeroChars = true;
+        for (int i = 0; i < labeledSubClauses.length; i++) {
+            if (!labeledSubClauses[i].clause.canMatchZeroChars) {
+                canMatchZeroChars = false;
                 break;
             }
         }
@@ -28,12 +28,12 @@ public class Longest extends Clause {
     public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
         Match longestSubClauseMatch = null;
         int longestSubClauseMatchIdx = 0;
-        for (int subClauseIdx = 0; subClauseIdx < subClauses.length; subClauseIdx++) {
-            var subClause = subClauses[subClauseIdx];
-            var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
+        for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
+            var labeledSubClause = labeledSubClauses[subClauseIdx];
+            var subClauseMemoKey = new MemoKey(labeledSubClause.clause, memoKey.startPos);
             var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
                     // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? subClause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
+                    ? labeledSubClause.clause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
                     // Otherwise matching bottom-up -- just look in the memo table for subclause matches
                     : memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch != null
@@ -53,18 +53,12 @@ public class Longest extends Clause {
     public String toString() {
         if (toStringCached == null) {
             var buf = new StringBuilder();
-            buf.append('(');
-            for (int i = 0; i < subClauses.length; i++) {
+            for (int i = 0; i < labeledSubClauses.length; i++) {
                 if (i > 0) {
                     buf.append(" | ");
                 }
-                if (subClauseASTNodeLabels != null && subClauseASTNodeLabels[i] != null) {
-                    buf.append(subClauseASTNodeLabels[i]);
-                    buf.append(':');
-                }
-                buf.append(subClauses[i].toString());
+                subClauseToStringWithASTNodeLabel(i, buf);
             }
-            buf.append(')');
             toStringCached = buf.toString();
         }
         return toStringCached;

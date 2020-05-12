@@ -98,7 +98,7 @@ public class ASTNode {
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
         // buf.append(indentStr + "│\n");
-        buf.append(indentStr + (isLastChild ? "└─" : "├─") + label + " " + startPos + "+" + len + " : \"" + inp
+        buf.append(indentStr + (isLastChild ? "└─" : "├─") + label + " : " + startPos + "+" + len + " : \"" + inp
                 + "\"\n");
         if (children != null) {
             for (int i = 0; i < children.size(); i++) {

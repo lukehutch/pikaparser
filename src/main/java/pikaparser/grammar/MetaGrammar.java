@@ -1,12 +1,23 @@
 package pikaparser.grammar;
 
+import static java.util.Map.entry;
 import static pikaparser.clause.ClauseFactory.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import pikaparser.clause.ASTNodeLabel;
 import pikaparser.clause.Clause;
+import pikaparser.clause.First;
+import pikaparser.clause.FollowedBy;
+import pikaparser.clause.Longest;
+import pikaparser.clause.NotFollowedBy;
+import pikaparser.clause.OneOrMore;
+import pikaparser.clause.RuleRef;
+import pikaparser.clause.Seq;
+import pikaparser.clause.Terminal;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.ParserInfo;
@@ -59,6 +70,24 @@ public class MetaGrammar {
     private static final String START_AST = "StartAST";
     private static final String NOTHING_AST = "NothingAST";
 
+    // Precedence levels (should correspond to levels in grammar below):
+
+    private static Map<Class<? extends Clause>, Integer> clauseTypeToPrecedence = //
+            Map.ofEntries( //
+                    entry(Terminal.class, 7), //
+                    // Treat RuleRef as a terminal for string interning purposes
+                    entry(RuleRef.class, 7), //
+                    entry(OneOrMore.class, 6), //
+                    // ZeroOrMore is not present in final grammar
+                    entry(NotFollowedBy.class, 5), //
+                    entry(FollowedBy.class, 5), //
+                    // Optional is not present in final grammar
+                    entry(ASTNodeLabel.class, 3), //
+                    entry(Seq.class, 2), //
+                    entry(First.class, 1), //
+                    entry(Longest.class, 0) //
+            );
+
     // Metagrammar:
 
     public static Grammar grammar = new Grammar(LEX, Arrays.asList(//
@@ -73,8 +102,10 @@ public class MetaGrammar {
 
             // Define precedence order for clause sequences
 
+            // Parens
             rule(CLAUSE, 8, /* associativity = */ null, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
 
+            // Terminals
             rule(CLAUSE, 7, /* associativity = */ null, //
                     first( //
                             r(IDENT), //
@@ -83,30 +114,37 @@ public class MetaGrammar {
                             r(NOTHING), //
                             r(START))), //
 
+            // OneOrMore / ZeroOrMore
             rule(CLAUSE, 6, /* associativity = */ null, //
                     first( //
                             seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c("+")),
                             seq(ast(ZERO_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')))), //
 
+            // FollowedBy / NotFollowedBy
             rule(CLAUSE, 5, /* associativity = */ null, //
                     first( //
                             seq(c('&'), ast(FOLLOWED_BY_AST, r(CLAUSE))), //
                             seq(c('!'), ast(NOT_FOLLOWED_BY_AST, r(CLAUSE))))), //
 
+            // Optional
             rule(CLAUSE, 4, /* associativity = */ null, //
                     seq(ast(OPTIONAL_AST, r(CLAUSE)), r(WSC), c('?'))), //
 
+            // ASTNodeLabel
             rule(CLAUSE, 3, /* associativity = */ null, //
                     ast(LABEL_AST,
                             seq(ast(LABEL_NAME_AST, r(IDENT)), r(WSC), c(':'), r(WSC),
                                     ast(LABEL_CLAUSE_AST, r(CLAUSE)), r(WSC)))), //
 
+            // Seq
             rule(CLAUSE, 2, /* associativity = */ null, //
                     ast(SEQ_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(r(CLAUSE), r(WSC)))))),
 
+            // First
             rule(CLAUSE, 1, /* associativity = */ null, //
                     ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('/'), r(WSC), r(CLAUSE), r(WSC)))))),
 
+            // Longest
             rule(CLAUSE, 0, /* associativity = */ null, //
                     ast(LONGEST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
 
@@ -214,6 +252,24 @@ public class MetaGrammar {
 
             rule(START, ast(START_AST, c('^'))) //
     ));
+
+    public static boolean addParensAroundSubClause(Clause parentClause, Clause subClause) {
+        int clausePrec = parentClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
+                : clauseTypeToPrecedence.get(parentClause.getClass());
+        int subClausePrec = subClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
+                : clauseTypeToPrecedence.get(subClause.getClass());
+        // Always parenthesize Seq inside First for clarity, even though Seq has higher precedence
+        return parentClause instanceof First && subClause instanceof Seq
+                // Add parentheses around subclauses that are lower or equal precedence to parent clause
+                || subClausePrec <= clausePrec;
+    }
+
+    public static boolean addParensAroundASTNodeLabel(Clause subClause) {
+        int astNodeLabelPrec = clauseTypeToPrecedence.get(ASTNodeLabel.class);
+        int subClausePrec = subClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
+                : clauseTypeToPrecedence.get(subClause.getClass());
+        return subClausePrec < astNodeLabelPrec;
+    }
 
     private static int hexDigitToInt(char c) {
         if (c >= '0' && c <= '9') {
@@ -383,6 +439,14 @@ public class MetaGrammar {
     public static Grammar parse(String input) {
         var memoTable = grammar.parse(input);
 
+        //        ParserInfo.printParseResult("GRAMMAR", grammar, memoTable, input,
+        //                new String[] { "GRAMMAR", "RULE", "CLAUSE[0]" }, /* showAllMatches = */ false);
+
+        //        System.out.println("\nParsed grammar:");
+        //        for (var clause : MetaGrammar.grammar.allClauses) {
+        //            System.out.println("    " + clause.toStringWithRuleNames());
+        //        }
+
         var syntaxErrors = grammar.getSyntaxErrors(memoTable, input, new String[] { GRAMMAR, RULE, CLAUSE });
         if (syntaxErrors.isEmpty()) {
             ParserInfo.printSyntaxErrors(syntaxErrors);
@@ -395,6 +459,9 @@ public class MetaGrammar {
             throw new IllegalArgumentException("Multiple toplevel matches");
         }
         var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", input);
+
+        // System.out.println(topLevelASTNode);
+
         List<Rule> rules = new ArrayList<>();
         String lexRuleName = null;
         for (ASTNode astNode : topLevelASTNode.children) {
