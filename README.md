@@ -4,7 +4,7 @@ This is the reference implementation of the pika parsing algorithm. Pika parsing
 
 ## Example usage
 
-# Parsing code
+### Parsing code
 
 ```java
 String grammarSpecFilename = "arithmetic.grammar";
@@ -23,7 +23,7 @@ MemoTable memoTable = metaGrammar.parse(srcStr);
 ParserInfo.printParseResult(topRuleName, metaGrammar, memoTable, input, recoveryRuleNames, false);
 ```
 
-# `arithmetic.grammar`:
+### `arithmetic.grammar`:
 
 ```
 Program <- Statement+;
@@ -49,79 +49,18 @@ Clauses can be of the form:
 
 The number in the optional square brackets after the rule name is the precedence, followed by an optional associativity modifier (`,L` or `,R`). 
 
-# `arithmetic.input`:
+### `arithmetic.input`:
 
 ```
 discriminant=b*b-4*a*c;
 ```
 
-# Generated parse tree:
+### Generated parse tree:
 
-```
-└─Program <- Statement+ : 0+23 : "discriminant=b*b-4*a*c;"
-  └─Statement <- var:[a-z]+ '=' E ';' : 0+23 : "discriminant=b*b-4*a*c;"
-    ├─var:[a-z]+ : 0+12 : "discriminant"
-    │ ├─[a-z] : 0+1 : "d"
-    │ ├─[a-z] : 1+1 : "i"
-    │ ├─[a-z] : 2+1 : "s"
-    │ ├─[a-z] : 3+1 : "c"
-    │ ├─[a-z] : 4+1 : "r"
-    │ ├─[a-z] : 5+1 : "i"
-    │ ├─[a-z] : 6+1 : "m"
-    │ ├─[a-z] : 7+1 : "i"
-    │ ├─[a-z] : 8+1 : "n"
-    │ ├─[a-z] : 9+1 : "a"
-    │ ├─[a-z] : 10+1 : "n"
-    │ └─[a-z] : 11+1 : "t"
-    ├─'=' : 12+1 : "="
-    ├─E[0] <- arith:(E[0] op:('+' / '-') E[1]) / E[1] : 13+9 : "b*b-4*a*c"
-    │ └─arith:(E[0] op:('+' / '-') E[1]) : 13+9 : "b*b-4*a*c"
-    │   ├─E[0] <- arith:(E[0] op:('+' / '-') E[1]) / E[1] : 13+3 : "b*b"
-    │   │ └─E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2] : 13+3 : "b*b"
-    │   │   └─arith:(E[1] op:('*' / '/') E[2]) : 13+3 : "b*b"
-    │   │     ├─E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2] : 13+1 : "b"
-    │   │     │ └─E[2] <- arith:(op:'-' (E[2] / E[3])) / E[3] : 13+1 : "b"
-    │   │     │   └─E[3] <- (num:[0-9]+ / sym:[a-z]+) / E[4] : 13+1 : "b"
-    │   │     │     └─num:[0-9]+ / sym:[a-z]+ : 13+1 : "b"
-    │   │     │       └─sym:[a-z]+ : 13+1 : "b"
-    │   │     │         └─[a-z] : 13+1 : "b"
-    │   │     ├─op:('*' / '/') : 14+1 : "*"
-    │   │     │ └─'*' : 14+1 : "*"
-    │   │     └─E[2] <- arith:(op:'-' (E[2] / E[3])) / E[3] : 15+1 : "b"
-    │   │       └─E[3] <- (num:[0-9]+ / sym:[a-z]+) / E[4] : 15+1 : "b"
-    │   │         └─num:[0-9]+ / sym:[a-z]+ : 15+1 : "b"
-    │   │           └─sym:[a-z]+ : 15+1 : "b"
-    │   │             └─[a-z] : 15+1 : "b"
-    │   ├─op:('+' / '-') : 16+1 : "-"
-    │   │ └─'-' : 16+1 : "-"
-    │   └─E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2] : 17+5 : "4*a*c"
-    │     └─arith:(E[1] op:('*' / '/') E[2]) : 17+5 : "4*a*c"
-    │       ├─E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2] : 17+3 : "4*a"
-    │       │ └─arith:(E[1] op:('*' / '/') E[2]) : 17+3 : "4*a"
-    │       │   ├─E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2] : 17+1 : "4"
-    │       │   │ └─E[2] <- arith:(op:'-' (E[2] / E[3])) / E[3] : 17+1 : "4"
-    │       │   │   └─E[3] <- (num:[0-9]+ / sym:[a-z]+) / E[4] : 17+1 : "4"
-    │       │   │     └─num:[0-9]+ / sym:[a-z]+ : 17+1 : "4"
-    │       │   │       └─num:[0-9]+ : 17+1 : "4"
-    │       │   │         └─[0-9] : 17+1 : "4"
-    │       │   ├─op:('*' / '/') : 18+1 : "*"
-    │       │   │ └─'*' : 18+1 : "*"
-    │       │   └─E[2] <- arith:(op:'-' (E[2] / E[3])) / E[3] : 19+1 : "a"
-    │       │     └─E[3] <- (num:[0-9]+ / sym:[a-z]+) / E[4] : 19+1 : "a"
-    │       │       └─num:[0-9]+ / sym:[a-z]+ : 19+1 : "a"
-    │       │         └─sym:[a-z]+ : 19+1 : "a"
-    │       │           └─[a-z] : 19+1 : "a"
-    │       ├─op:('*' / '/') : 20+1 : "*"
-    │       │ └─'*' : 20+1 : "*"
-    │       └─E[2] <- arith:(op:'-' (E[2] / E[3])) / E[3] : 21+1 : "c"
-    │         └─E[3] <- (num:[0-9]+ / sym:[a-z]+) / E[4] : 21+1 : "c"
-    │           └─num:[0-9]+ / sym:[a-z]+ : 21+1 : "c"
-    │             └─sym:[a-z]+ : 21+1 : "c"
-    │               └─[a-z] : 21+1 : "c"
-    └─';' : 22+1 : ";"
-```
 
-# Alternative view of generated parse tree:
+
+
+### Alternative view of generated parse tree:
 
 ```
                                                        ┌─────────────────────────────────────────────┐  
@@ -174,7 +113,7 @@ discriminant=b*b-4*a*c;
                                                         d i s c r i m i n a n t = b * b - 4 * a * c ; 
 ```
 
-# Generated Abstract Syntax Tree (AST):
+### Generated Abstract Syntax Tree (AST):
 
 ```
 └─<root> : 0+23 : "discriminant=b*b-4*a*c;"
@@ -194,7 +133,7 @@ discriminant=b*b-4*a*c;
       └─sym : 21+1 : "c"
 ```
 
-# The use of a `Lex` preprocessing rule
+### The use of a `Lex` preprocessing rule
 
 If the grammar contains a rule named `Lex` of the form
 
@@ -204,7 +143,7 @@ Lex = [0-9]+ / [a-z]+ / '=' / '+' / '*' / '/';
 
 then lex preprocessing is applied, wherein the above rule is matched repeatedly until all input is consumed. This can dramatically reduce the size of the memo table due to avoidance of spurious matches -- see the paper for more information.
 
-# Error recovery
+### Error recovery
 
 You can recover from syntax errors by finding the next match of any grammar rule of interest. For example:
 
@@ -216,18 +155,18 @@ if (!programEntries.isEmpty()) {
     if (bestMatch != null) {
         int startPos = bestMatch.memoKey.startPos;
         int len = bestMatch.len;
-	    matchEndPosition = startPos + len;
+        matchEndPosition = startPos + len;
     }    
 }
 if (matchEndPosition < input.length()) {
-	NavigableMap<Integer, MemoEntry> statementEntries = grammar.getNavigableMatches("Statement", memoTable);
-	MemoEntry nextStatement = statementEntries.ceilingEntry(matchEndPosition);
-	if (nextStatement != null) {
-	    Match nextStatementMatch = nextStatement.bestMatch;
-	    if (nextStatementMatch != null) {
-	    	int nextStatementStartPosition = nextStatement.bestMatch.memoKey.startPos;
-	    	// ...
-    	}
-	}
+    NavigableMap<Integer, MemoEntry> statementEntries = grammar.getNavigableMatches("Statement", memoTable);
+    MemoEntry nextStatement = statementEntries.ceilingEntry(matchEndPosition);
+    if (nextStatement != null) {
+        Match nextStatementMatch = nextStatement.bestMatch;
+        if (nextStatementMatch != null) {
+            int nextStatementStartPosition = nextStatement.bestMatch.memoKey.startPos;
+            // ...
+        }
+    }
 }
 ```
