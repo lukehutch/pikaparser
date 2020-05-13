@@ -15,7 +15,7 @@ public class Longest extends Clause {
     }
 
     @Override
-    public void testWhetherCanMatchZeroChars() {
+    public void determineWhetherCanMatchZeroChars() {
         canMatchZeroChars = true;
         for (int i = 0; i < labeledSubClauses.length; i++) {
             if (!labeledSubClauses[i].clause.canMatchZeroChars) {

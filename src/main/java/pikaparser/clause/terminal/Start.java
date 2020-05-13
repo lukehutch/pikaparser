@@ -20,7 +20,7 @@ public class Start extends Terminal {
     }
 
     @Override
-    public void testWhetherCanMatchZeroChars() {
+    public void determineWhetherCanMatchZeroChars() {
         canMatchZeroChars = true;
     }
 

@@ -16,7 +16,7 @@ public class First extends Clause {
     }
 
     @Override
-    public void testWhetherCanMatchZeroChars() {
+    public void determineWhetherCanMatchZeroChars() {
         for (int i = 0; i < labeledSubClauses.length; i++) {
             if (labeledSubClauses[i].clause.canMatchZeroChars) {
                 canMatchZeroChars = true;

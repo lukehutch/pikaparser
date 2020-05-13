@@ -12,7 +12,7 @@ public class Nothing extends Terminal {
     }
 
     @Override
-    public void testWhetherCanMatchZeroChars() {
+    public void determineWhetherCanMatchZeroChars() {
         canMatchZeroChars = true;
     }
 

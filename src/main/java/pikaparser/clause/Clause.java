@@ -1,16 +1,12 @@
 package pikaparser.clause;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import pikaparser.clause.aux.ASTNodeLabel;
-import pikaparser.clause.nonterminal.First;
-import pikaparser.clause.nonterminal.Longest;
 import pikaparser.clause.terminal.Nothing;
 import pikaparser.clause.util.LabeledClause;
 import pikaparser.grammar.MetaGrammar;
@@ -75,22 +71,11 @@ public abstract class Clause {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Get the list of subclause(s) that are "seed clauses" (first clauses that will be matched in the starting
-     * position of this clause). Prevents having to evaluate every clause at every position to put a backref into
-     * position from the first subclause back to this clause. Overridden only by {@link Longest}, since this
-     * evaluates all of its sub-clauses, and {@link First}, since any one of the sub-clauses can match in the first
-     * position.
-     */
-    protected List<Clause> getSeedSubClauses() {
-        return labeledSubClauses.length == 0 ? Collections.emptyList()
-                : Arrays.stream(labeledSubClauses).map(s -> s.clause).collect(Collectors.toList());
-    }
-
-    /** For all seed subclauses, add backlink from subclause to this clause. */
-    public void backlinkToSeedParentClauses() {
-        for (Clause seedSubClause : getSeedSubClauses()) {
-            seedSubClause.seedParentClauses.add(this);
+    /** Find which subclauses need to add this clause as a "seed parent clause". */
+    public void addAsSeedParentClause() {
+        // Default implementation: all subcluses will seed this parent clause. Overridden by Seq.
+        for (var labeledSubClause : labeledSubClauses) {
+            labeledSubClause.clause.seedParentClauses.add(this);
         }
     }
 
@@ -103,7 +88,7 @@ public abstract class Clause {
      * <p>
      * Overridden in subclasses.
      */
-    public void testWhetherCanMatchZeroChars() {
+    public void determineWhetherCanMatchZeroChars() {
     }
 
     // -------------------------------------------------------------------------------------------------------------

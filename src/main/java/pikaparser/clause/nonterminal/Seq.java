@@ -1,6 +1,5 @@
 package pikaparser.clause.nonterminal;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import pikaparser.clause.Clause;
@@ -22,8 +21,9 @@ public class Seq extends Clause {
     }
 
     @Override
-    public void testWhetherCanMatchZeroChars() {
-        // For Seq, all subclauses must always match for the whole clause to always match
+    public void determineWhetherCanMatchZeroChars() {
+        // For Seq, all subclauses must be able to match zero characters for the whole clause to
+        // be able to match zero characters
         canMatchZeroChars = true;
         for (var subClause : labeledSubClauses) {
             if (!subClause.clause.canMatchZeroChars) {
@@ -34,18 +34,16 @@ public class Seq extends Clause {
     }
 
     @Override
-    public List<Clause> getSeedSubClauses() {
-        // Any sub-clause up to and including the first clause that requires a non-zero-char match could be
-        // the matching clause.
-        List<Clause> seedSubClauses = new ArrayList<>(labeledSubClauses.length);
-        for (int i = 0; i < labeledSubClauses.length; i++) {
-            seedSubClauses.add(labeledSubClauses[i].clause);
-            if (!labeledSubClauses[i].clause.canMatchZeroChars) {
-                // Don't need to seed any subsequent subclauses
+    public void addAsSeedParentClause() {
+        // All sub-clauses up to and including the first clause that matches one or more characters
+        // needs to seed its parent clause if there is a subclause match
+        for (var labeledSubClause : labeledSubClauses) {
+            labeledSubClause.clause.seedParentClauses.add(this);
+            if (!labeledSubClause.clause.canMatchZeroChars) {
+                // Don't need to any subsequent subclauses to seed this parent clause
                 break;
             }
         }
-        return seedSubClauses;
     }
 
     @Override
