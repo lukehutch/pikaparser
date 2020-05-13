@@ -57,15 +57,15 @@ discriminant=b*b-4*a*c;
 
 ### Generated parse tree:
 
-<img alt="Parse tree" height="625" width = "919" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree1.png">
+<img alt="Parse tree" width="625" height="919" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree1.png">
 
 ### Alternative view of generated parse tree:
 
-<img alt="Alternative view of parse tree" height="810" width = "723" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree2.png">
+<img alt="Alternative view of parse tree" width="810" height="723" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree2.png">
 
 ### Generated Abstract Syntax Tree (AST):
 
-<img alt="Alternative view of parse tree" height="344" width = "229" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/AST.png">
+<img alt="Alternative view of parse tree" width="344" height="229" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/AST.png">
 
 ### The use of a `Lex` preprocessing rule
 
