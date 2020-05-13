@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
@@ -21,6 +22,7 @@ import pikaparser.clause.terminal.Terminal;
 import pikaparser.clause.util.LabeledClause;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
@@ -476,6 +478,11 @@ public class Grammar {
      */
     public List<Integer> getNonMatches(String ruleName, MemoTable memoTable) {
         return memoTable.getNonMatchPositions(getRule(ruleName).labeledClause.clause);
+    }
+
+    /** Get all {@link MemoEntry} entries for the given clause, indexed by start position. */
+    public NavigableMap<Integer, MemoEntry> getNavigableMatches(String ruleName, MemoTable memoTable) {
+        return memoTable.getNavigableMatches(getRule(ruleName).labeledClause.clause);
     }
 
     private static void addRange(int startPos, int endPos, String input,

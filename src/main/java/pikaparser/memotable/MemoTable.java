@@ -94,6 +94,11 @@ public class MemoTable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get all {@link MemoEntry} entries for the given clause, indexed by start position. */
+    public NavigableMap<Integer, MemoEntry> getNavigableMatches(Clause clause) {
+        return memoTable.get(clause);
+    }
+    
     /**
      * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching
      * from the beginning of the string, then looking for the next match after the end of the current match.
