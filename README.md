@@ -57,81 +57,15 @@ discriminant=b*b-4*a*c;
 
 ### Generated parse tree:
 
-
-
+<img alt="Parse tree" height="625" width = "919" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree1.png">
 
 ### Alternative view of generated parse tree:
 
-```
-                                                       ┌─────────────────────────────────────────────┐  
-                            0 : Program <- Statement+  │d i s c r i m i n a n t = b * b - 4 * a * c ;│  
-                                                       ├─────────────────────────────────────────────┤  
-                1 : Statement <- var:[a-z]+ '=' E ';'  │d i s c r i m i n a n t = b * b - 4 * a * c ;│  
-                                                       │                         ┌─────────────────┐ │  
-  3 : E[0] <- arith:(E[0] op:('+' / '-') E[1]) / E[1]  │                         │b * b - 4 * a * c│ │  
-                                                       │                         ├─────────────────┤ │  
-                         4 : E[0] op:('+' / '-') E[1]  │                         │b * b - 4 * a * c│ │  
-                                                       │                         │       ┌─────────┤ │  
-  5 : E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2]  │                         │       │4 * a * c│ │  
-                                                       │                         │       ├─────────┤ │  
-                         6 : E[1] op:('*' / '/') E[2]  │                         │       │4 * a * c│ │  
-                                                       │                         ├─────┐ │         │ │  
-  3 : E[0] <- arith:(E[0] op:('+' / '-') E[1]) / E[1]  │                         │b * b│ │         │ │  
-                                                       │                         ├─────┤ ├─────┐   │ │  
-  5 : E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2]  │                         │b * b│ │4 * a│   │ │  
-                                                       │                         ├─────┤ ├─────┤   │ │  
-                         6 : E[1] op:('*' / '/') E[2]  │                         │b * b│ │4 * a│   │ │  
-                                                       │                         │     │ │     │   ├─┤  
-                                   2 : [terminal] ';'  │                         │     │ │     │   │;│  
-                                                       │                         ├─┐   │ ├─┐   │   │ │  
-  5 : E[1] <- arith:(E[1] op:('*' / '/') E[2]) / E[2]  │                         │b│   │ │4│   │   │ │  
-                                                       │                         ├─┤ ┌─┤ ├─┤ ┌─┤ ┌─┤ │  
-      7 : E[2] <- arith:(op:'-' (E[2] / E[3])) / E[3]  │                         │b│ │b│ │4│ │a│ │c│ │  
-                                                       │                         ├─┤ ├─┤ ├─┤ ├─┤ ├─┤ │  
-        10 : E[3] <- (num:[0-9]+ / sym:[a-z]+) / E[4]  │                         │b│ │b│ │4│ │a│ │c│ │  
-                                                       │                         ├─┤ ├─┤ ├─┤ ├─┤ ├─┤ │  
-                         15 : num:[0-9]+ / sym:[a-z]+  │                         │b│ │b│ │4│ │a│ │c│ │  
-                                                       │                         │ │ │ │ ├─┤ │ │ │ │ │  
-                                          16 : [0-9]+  │                         │ │ │ │ │4│ │ │ │ │ │  
-                                                       │                         │ │ │ │ ├─┤ │ │ │ │ │  
-                                17 : [terminal] [0-9]  │                         │ │ │ │ │4│ │ │ │ │ │  
-                                                       │                         │ ├─┤ │ │ ├─┤ ├─┤ │ │  
-                                       18 : '*' / '/'  │                         │ │*│ │ │ │*│ │*│ │ │  
-                                                       │                         │ ├─┤ │ │ ├─┤ ├─┤ │ │  
-                                  20 : [terminal] '*'  │                         │ │*│ │ │ │*│ │*│ │ │  
-                                                       │                         │ │ │ ├─┤ │ │ │ │ │ │  
-                                       21 : '+' / '-'  │                         │ │ │ │-│ │ │ │ │ │ │  
-                                                       │                         │ │ │ ├─┤ │ │ │ │ │ │  
-                                  22 : [terminal] '-'  │                         │ │ │ │-│ │ │ │ │ │ │  
-                                                       │                       ┌─┤ │ │ │ │ │ │ │ │ │ │  
-                                  24 : [terminal] '='  │                       │=│ │ │ │ │ │ │ │ │ │ │  
-                                                       ├───────────────────────┤ ├─┤ ├─┤ │ │ ├─┤ ├─┤ │  
-                                          25 : [a-z]+  │d i s c r i m i n a n t│ │b│ │b│ │ │ │a│ │c│ │  
-                                                       ├─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┤ ├─┤ ├─┤ │ │ ├─┤ ├─┤ │  
-                                26 : [terminal] [a-z]  │d│i│s│c│r│i│m│i│n│a│n│t│ │b│ │b│ │ │ │a│ │c│ │  
-                                                        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 
-                                                        d i s c r i m i n a n t = b * b - 4 * a * c ; 
-```
+<img alt="Alternative view of parse tree" height="810" width = "723" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree2.png">
 
 ### Generated Abstract Syntax Tree (AST):
 
-```
-└─<root> : 0+23 : "discriminant=b*b-4*a*c;"
-  ├─var : 0+12 : "discriminant"
-  └─arith : 13+9 : "b*b-4*a*c"
-    ├─arith : 13+3 : "b*b"
-    │ ├─sym : 13+1 : "b"
-    │ ├─op : 14+1 : "*"
-    │ └─sym : 15+1 : "b"
-    ├─op : 16+1 : "-"
-    └─arith : 17+5 : "4*a*c"
-      ├─arith : 17+3 : "4*a"
-      │ ├─num : 17+1 : "4"
-      │ ├─op : 18+1 : "*"
-      │ └─sym : 19+1 : "a"
-      ├─op : 20+1 : "*"
-      └─sym : 21+1 : "c"
-```
+<img alt="Alternative view of parse tree" height="344" width = "229" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/AST.png">
 
 ### The use of a `Lex` preprocessing rule
 
