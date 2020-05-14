@@ -13,8 +13,8 @@ Pika parsing is the inverse of packrat parsing: instead of parsing top-down, lef
 ```java
 String grammarSpecFilename = "arithmetic.grammar";
 String inputFilename = "arithmetic.input";
-String topRuleName = "S";
-String[] recoveryRuleNames = { topRuleName };
+String topRuleName = "Program";
+String[] recoveryRuleNames = { topRuleName, "Statement" };
 
 String grammarSpec = Files.readString(Paths.get(grammarSpecFilename));
 
