@@ -156,11 +156,18 @@ public class Grammar {
         }
         topLevelClausesOrdered.addAll(cycleHeadClauses);
 
-        // Topologically sort all clauses into bottom-up order
-        allClauses = new ArrayList<Clause>();
-        var visited2 = new HashSet<Clause>();
+        // Topologically sort all clauses into bottom-up order, starting with terminals (so that terminals are
+        // all grouped together at the beginning of the list)
+        var visited = new HashSet<Clause>();
+        var terminals = new ArrayList<Clause>();
+        for (var rule : allRules) {
+            findTerminals(rule.labeledClause.clause, visited, terminals);
+        }
+        allClauses = new ArrayList<Clause>(terminals);
+        visited.clear();
+        visited.addAll(terminals);
         for (var topLevelClause : topLevelClausesOrdered) {
-            findReachableClauses(topLevelClause, visited2, allClauses);
+            findReachableClauses(topLevelClause, visited, allClauses);
         }
 
         // Give each clause an index in the topological sort order, bottom-up
@@ -177,6 +184,20 @@ public class Grammar {
         // Find seed parent clauses (in the case of Seq, this depends upon alwaysMatches being set in the prev step)
         for (var clause : allClauses) {
             clause.addAsSeedParentClause();
+        }
+    }
+
+    /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
+    private static void findTerminals(Clause clause, HashSet<Clause> visited, List<Clause> terminalsOut) {
+        if (visited.add(clause)) {
+            if (clause instanceof Terminal) {
+                terminalsOut.add(clause);
+            } else {
+                for (var labeledSubClause : clause.labeledSubClauses) {
+                    var subClause = labeledSubClause.clause;
+                    findTerminals(subClause, visited, terminalsOut);
+                }
+            }
         }
     }
 

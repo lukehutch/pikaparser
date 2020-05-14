@@ -68,7 +68,7 @@ discriminant=b*b-4*a*c;
 ### Alternative view of generated parse tree:
 
 <p align="center">
-<img alt="Alternative view of parse tree" width="810" height="723" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree2.png">
+<img alt="Alternative view of parse tree" width="801" height="720" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/ParseTree2.png">
 </p>
 
 ### Generated Abstract Syntax Tree (AST):
