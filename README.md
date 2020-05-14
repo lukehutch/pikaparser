@@ -27,7 +27,7 @@ MemoTable memoTable = metaGrammar.parse(srcStr);
 ParserInfo.printParseResult(topRuleName, metaGrammar, memoTable, input, recoveryRuleNames, false);
 ```
 
-### `arithmetic.grammar`:
+### Grammar description file: `arithmetic.grammar`
 
 ```
 Program <- Statement+;
@@ -53,7 +53,7 @@ Clauses can be of the form:
 
 The number in the optional square brackets after the rule name is the precedence, followed by an optional associativity modifier (`,L` or `,R`). 
 
-### `arithmetic.input`:
+### Input string to parse: `arithmetic.input`
 
 ```
 discriminant=b*b-4*a*c;
