@@ -2,7 +2,7 @@
 
 This is the reference implementation of the pika parsing algorithm, described in the paper:
 
-[Pika parsing: parsing in reverse solves the left recursion and error recovery problems. Luke A.D. Hutchison, 2020](https://arxiv.org/abs/2005.06444)
+[Pika parsing: parsing in reverse solves the left recursion and error recovery problems. Luke A. D. Hutchison, May 2020.](https://arxiv.org/abs/2005.06444)
 
 Pika parsing is the inverse of packrat parsing: instead of parsing top-down, left to right, pika parsing parses right to left, bottom-up, using dynamic programming. This reversed parsing order allows the parser to directly handle left-recursive grammars, and allows the parser to optimally recover from syntax errors.
 
