@@ -32,35 +32,35 @@ public class CharSeq extends Terminal {
             buf.append('"');
             for (int i = 0; i < str.length(); i++) {
                 char c = str.charAt(i);
-                if (c >= 32 && c <= 126) {
-                    buf.append(c);
-                } else {
-                    switch (c) {
-                    case '\t':
-                        buf.append("\\t");
-                        break;
-                    case '\n':
-                        buf.append("\\n");
-                        break;
-                    case '\r':
-                        buf.append("\\r");
-                        break;
-                    case '\b':
-                        buf.append("\\b");
-                        break;
-                    case '\f':
-                        buf.append("\\f");
-                        break;
-                    case '\'':
-                        buf.append("\\'");
-                        break;
-                    case '\"':
-                        buf.append("\\\"");
-                        break;
-                    case '\\':
-                        buf.append("\\\\");
-                        break;
-                    default:
+                switch (c) {
+                case '\t':
+                    buf.append("\\t");
+                    break;
+                case '\n':
+                    buf.append("\\n");
+                    break;
+                case '\r':
+                    buf.append("\\r");
+                    break;
+                case '\b':
+                    buf.append("\\b");
+                    break;
+                case '\f':
+                    buf.append("\\f");
+                    break;
+                case '\'':
+                    buf.append("\\'");
+                    break;
+                case '\"':
+                    buf.append("\\\"");
+                    break;
+                case '\\':
+                    buf.append("\\\\");
+                    break;
+                default:
+                    if (c >= 32 && c <= 126) {
+                        buf.append(c);
+                    } else {
                         buf.append("\\u" + String.format("%04x", (int) c));
                     }
                 }
