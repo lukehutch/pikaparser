@@ -328,6 +328,7 @@ public class MetaGrammar {
                     throw new IllegalArgumentException("Got backslash at end of quoted string");
                 }
                 buf.append(unescapeChar(str.substring(i, i + 2)));
+                i++; // Consume escaped character
             } else {
                 buf.append(c);
             }
