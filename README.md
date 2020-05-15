@@ -18,13 +18,13 @@ String[] recoveryRuleNames = { topRuleName, "Statement" };
 
 String grammarSpec = Files.readString(Paths.get(grammarSpecFilename));
 
-Grammar grammar = MetaGrammar.parse(grammarSpecInput);
+Grammar grammar = MetaGrammar.parse(grammarSpec);
 
 String input = Files.readString(Paths.get(inputFilename));
 
-MemoTable memoTable = metaGrammar.parse(srcStr);
+MemoTable memoTable = grammar.parse(input);
 
-ParserInfo.printParseResult(topRuleName, metaGrammar, memoTable, input, recoveryRuleNames, false);
+ParserInfo.printParseResult(topRuleName, grammar, memoTable, input, recoveryRuleNames, false);
 ```
 
 ### Grammar description file: `arithmetic.grammar`
