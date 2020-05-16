@@ -14,7 +14,7 @@ public class ASTNodeLabel extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }
 

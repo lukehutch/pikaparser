@@ -82,16 +82,6 @@ public class MemoTable {
         memoEntry.addMatch(match, priorityQueue, numMatchObjectsMemoized);
     }
 
-    /** Add a tree of {@link Match} objects to the memo table (used for lex rules that match). */
-    public Match addMatchRecursive(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
-        addMatch(match, priorityQueue);
-        var subClauseMatches = match.getSubClauseMatchesRaw();
-        for (int i = 0; i < subClauseMatches.length; i++) {
-            addMatchRecursive(subClauseMatches[i], priorityQueue);
-        }
-        return match;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** Get all {@link MemoEntry} entries for the given clause, indexed by start position. */

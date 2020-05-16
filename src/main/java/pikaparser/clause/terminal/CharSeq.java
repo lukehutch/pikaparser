@@ -15,7 +15,7 @@ public class CharSeq extends Terminal {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         if (memoKey.startPos <= input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {
             // Terminals are not memoized (i.e. don't look in the memo table)

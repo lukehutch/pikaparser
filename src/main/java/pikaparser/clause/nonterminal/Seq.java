@@ -10,6 +10,8 @@ import pikaparser.memotable.MemoTable;
 public class Seq extends Clause {
 
     public Seq(Clause... subClauses) {
+        // Have to call super-constructor as first statement, but we have to do some argument processing
+        // below first, so pass null to the super constructor as a placeholder
         super(subClauses);
         if (subClauses.length < 2) {
             throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
@@ -47,17 +49,13 @@ public class Seq extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         Match[] subClauseMatches = null;
         var currStartPos = memoKey.startPos;
         for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
-            var labeledSubClause = labeledSubClauses[subClauseIdx];
-            var subClauseMemoKey = new MemoKey(labeledSubClause.clause, currStartPos);
-            var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
-                    // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? labeledSubClause.clause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
-                    // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                    : memoTable.lookUpBestMatch(subClauseMemoKey);
+            var subClause = labeledSubClauses[subClauseIdx].clause;
+            var subClauseMemoKey = new MemoKey(subClause, currStartPos);
+            var subClauseMatch = memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch == null) {
                 // Fail after first subclause fails to match
                 return null;

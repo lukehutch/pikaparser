@@ -31,15 +31,11 @@ public class First extends Clause {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
             var labeledSubClause = labeledSubClauses[subClauseIdx];
             var subClauseMemoKey = new MemoKey(labeledSubClause.clause, memoKey.startPos);
-            var subClauseMatch = matchDirection == MatchDirection.TOP_DOWN
-                    // Match lex rules top-down, which avoids creating memo entries for unused terminals.
-                    ? labeledSubClause.clause.match(MatchDirection.TOP_DOWN, memoTable, subClauseMemoKey, input)
-                    // Otherwise matching bottom-up -- just look in the memo table for subclause matches
-                    : memoTable.lookUpBestMatch(subClauseMemoKey);
+            var subClauseMatch = memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch != null) {
                 return new Match(memoKey, /* firstMatchingSubclauseIdx = */ subClauseIdx,
                         /* len = */ subClauseMatch.len, new Match[] { subClauseMatch });
@@ -47,7 +43,7 @@ public class First extends Clause {
         }
         return null;
     }
-
+    
     @Override
     public String toString() {
         if (toStringCached == null) {

@@ -55,7 +55,8 @@ public class ParserInfo {
     private static int findCycleDepth(Match match,
             Map<Integer, Map<Integer, Map<Integer, Match>>> cycleDepthToMatches) {
         var cycleDepth = 0;
-        for (var subClauseMatch : match.getSubClauseMatches()) {
+        for (var subClauseMatchEnt : match.getSubClauseMatches()) {
+            var subClauseMatch = subClauseMatchEnt.getValue();
             var subClauseIsInDifferentCycle = //
                     match.memoKey.clause.clauseIdx <= subClauseMatch.memoKey.clause.clauseIdx;
             var subClauseMatchDepth = findCycleDepth(subClauseMatch, cycleDepthToMatches);
@@ -76,6 +77,69 @@ public class ParserInfo {
         return cycleDepth;
     }
 
+
+    public static void printMemoTable(List<Clause> allClauses, MemoTable memoTable, String input) {
+        StringBuilder[] buf = new StringBuilder[allClauses.size()];
+        int marginWidth = 0;
+        for (int i = 0; i < allClauses.size(); i++) {
+            buf[i] = new StringBuilder();
+            buf[i].append(String.format("%3d", i) + " : ");
+            Clause clause = allClauses.get(allClauses.size() - 1 - i);
+            if (clause instanceof Terminal) {
+                buf[i].append("[terminal] ");
+            }
+            if (clause.canMatchZeroChars) {
+                buf[i].append("[canMatchZeroChars] ");
+            }
+            buf[i].append(clause.toStringWithRuleNames());
+            marginWidth = Math.max(marginWidth, buf[i].length() + 2);
+        }
+        int tableWidth = marginWidth + input.length() + 1;
+        for (int i = 0; i < allClauses.size(); i++) {
+            while (buf[i].length() < marginWidth) {
+                buf[i].append(' ');
+            }
+            while (buf[i].length() < tableWidth) {
+                buf[i].append('-');
+            }
+        }
+        for (int i = 0; i < allClauses.size(); i++) {
+            Clause clause = allClauses.get(allClauses.size() - 1 - i);
+            // Render non-matches
+            for (var startPos : memoTable.getNonMatchPositions(clause)) {
+                if (startPos <= input.length()) {
+                    buf[i].setCharAt(marginWidth + startPos, 'x');
+                }
+            }
+            // Render matches
+            for (var match : memoTable.getNonOverlappingMatches(clause)) {
+                if (match.memoKey.startPos <= input.length()) {
+                    buf[i].setCharAt(marginWidth + match.memoKey.startPos, '#');
+                    for (int j = match.memoKey.startPos + 1; j < match.memoKey.startPos + match.len; j++) {
+                        if (j <= input.length()) {
+                            buf[i].setCharAt(marginWidth + j, '=');
+                        }
+                    }
+                }
+            }
+            System.out.println(buf[i]);
+        }
+
+        for (int j = 0; j < marginWidth; j++) {
+            System.out.print(' ');
+        }
+        for (int i = 0; i < input.length(); i++) {
+            System.out.print(i % 10);
+        }
+        System.out.println();
+
+        for (int i = 0; i < marginWidth; i++) {
+            System.out.print(' ');
+        }
+        System.out.println(replaceNonASCII(input));
+    }
+
+    
     public static void printMatchTree(String toplevelRuleName, Grammar grammar, MemoTable memoTable, String input,
             BitSet consumedChars) {
         if (grammar.allClauses.size() == 0) {
@@ -252,6 +316,10 @@ public class ParserInfo {
         System.out.println();
         System.out.println("Clauses:");
         printClauses(grammar);
+        
+        System.out.println();
+        System.out.println("Memo Table:");
+        printMemoTable(grammar.allClauses, memoTable, input);        
 
         // Print memo table
         System.out.println();

@@ -16,7 +16,7 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
-    public final LabeledClause[] labeledSubClauses;
+    public LabeledClause[] labeledSubClauses;
 
     /** Rules this clause is a toplevel clause of */
     public List<Rule> rules;
@@ -93,15 +93,11 @@ public abstract class Clause {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public static enum MatchDirection {
-        BOTTOM_UP, TOP_DOWN;
-    }
-
     /**
      * Match a clause top-down (recursively) or bottom-up (looking in the memo-table just one level top-down) at a
      * given start position.
      */
-    public abstract Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input);
+    public abstract Match match(MemoTable memoTable, MemoKey memoKey, String input);
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -114,7 +110,7 @@ public abstract class Clause {
     protected void subClauseToStringWithASTNodeLabel(int subClauseIdx, StringBuilder buf) {
         var labeledSubClause = labeledSubClauses[subClauseIdx];
         var subClause = labeledSubClause.clause;
-        var addParens = MetaGrammar.addParensAroundSubClause(this, subClause);
+        var addParens = MetaGrammar.addParensAroundSubClause(this, subClause, subClauseIdx);
         if (labeledSubClause.astNodeLabel != null) {
             buf.append(labeledSubClause.astNodeLabel);
             buf.append(':');

@@ -13,7 +13,6 @@ import pikaparser.clause.aux.ASTNodeLabel;
 import pikaparser.clause.aux.RuleRef;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.nonterminal.FollowedBy;
-import pikaparser.clause.nonterminal.Longest;
 import pikaparser.clause.nonterminal.NotFollowedBy;
 import pikaparser.clause.nonterminal.OneOrMore;
 import pikaparser.clause.nonterminal.Seq;
@@ -26,7 +25,6 @@ public class MetaGrammar {
     // Rule names:
 
     private static final String GRAMMAR = "GRAMMAR";
-    private static final String LEX = "LEX";
     private static final String WSC = "WSC";
     private static final String COMMENT = "COMMENT";
     private static final String RULE = "RULE";
@@ -58,7 +56,6 @@ public class MetaGrammar {
     private static final String LABEL_CLAUSE_AST = "LabelClauseAST";
     private static final String SEQ_AST = "SeqAST";
     private static final String FIRST_AST = "FirstAST";
-    private static final String LONGEST_AST = "LongestAST";
     private static final String FOLLOWED_BY_AST = "FollowedByAST";
     private static final String NOT_FOLLOWED_BY_AST = "NotFollowedByAST";
     private static final String ONE_OR_MORE_AST = "OneOrMoreAST";
@@ -84,13 +81,12 @@ public class MetaGrammar {
                     // Optional is not present in final grammar
                     entry(ASTNodeLabel.class, 3), //
                     entry(Seq.class, 2), //
-                    entry(First.class, 1), //
-                    entry(Longest.class, 0) //
+                    entry(First.class, 1) //
             );
 
     // Metagrammar:
 
-    public static Grammar grammar = new Grammar(LEX, Arrays.asList(//
+    public static Grammar grammar = new Grammar(Arrays.asList(//
             rule(GRAMMAR, //
                     seq(start(), r(WSC), oneOrMore(r(RULE)))), //
 
@@ -143,36 +139,6 @@ public class MetaGrammar {
             // First
             rule(CLAUSE, 1, /* associativity = */ null, //
                     ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('/'), r(WSC), r(CLAUSE), r(WSC)))))),
-
-            // Longest
-            rule(CLAUSE, 0, /* associativity = */ null, //
-                    ast(LONGEST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('|'), r(WSC), r(CLAUSE), r(WSC)))))),
-
-            // Lex rule for preprocessing
-
-            rule(LEX, //
-                    first( //
-                            c('('), //
-                            c(')'), //
-                            c(';'), //
-                            c(':'), //
-                            c('^'), //
-                            c('*'), //
-                            c('+'), //
-                            c('?'), //
-                            c('|'), //
-                            c('/'), //
-                            c('^'), //
-                            c('-'), //
-                            str("<-"), //
-                            // Match both CHAR_SET and PREC, since PREC looks like a CHAR_SET
-                            longest(r(PREC), r(CHAR_SET)), //
-                            r(IDENT), //
-                            r(NUM), //
-                            r(QUOTED_STRING), //
-
-                            // WS/comment has to come last, since it can match Nothing
-                            r(WSC))), //
 
             rule(WSC, //
                     zeroOrMore(first(c(" \n\r\t"), r(COMMENT)))),
@@ -253,15 +219,15 @@ public class MetaGrammar {
             rule(START, ast(START_AST, c('^'))) //
     ));
 
-    public static boolean addParensAroundSubClause(Clause parentClause, Clause subClause) {
+    public static boolean addParensAroundSubClause(Clause parentClause, Clause subClause, int subClauseIdx) {
         int clausePrec = parentClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
                 : clauseTypeToPrecedence.get(parentClause.getClass());
         int subClausePrec = subClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
                 : clauseTypeToPrecedence.get(subClause.getClass());
         // Always parenthesize Seq inside First for clarity, even though Seq has higher precedence
-        return parentClause instanceof First && subClause instanceof Seq
+        return ((parentClause instanceof First && subClause instanceof Seq)
                 // Add parentheses around subclauses that are lower or equal precedence to parent clause
-                || subClausePrec <= clausePrec;
+                || subClausePrec <= clausePrec);
     }
 
     public static boolean addParensAroundASTNodeLabel(Clause subClause) {
@@ -369,9 +335,6 @@ public class MetaGrammar {
         case FIRST_AST:
             clause = first(parseASTNodes(astNode.children));
             break;
-        case LONGEST_AST:
-            clause = longest(parseASTNodes(astNode.children));
-            break;
         case ONE_OR_MORE_AST:
             clause = oneOrMore(expectOne(parseASTNodes(astNode.children)));
             break;
@@ -464,18 +427,13 @@ public class MetaGrammar {
         // System.out.println(topLevelASTNode);
 
         List<Rule> rules = new ArrayList<>();
-        String lexRuleName = null;
         for (ASTNode astNode : topLevelASTNode.children) {
             if (!astNode.label.equals(RULE_AST)) {
                 throw new IllegalArgumentException("Wrong node type");
             }
             Rule rule = parseRule(astNode, input);
             rules.add(rule);
-            if (rule.ruleName != null && rule.ruleName.equals("Lex")) {
-                // If a rule is named "Lex", then use that as the toplevel lex rule
-                lexRuleName = rule.ruleName;
-            }
         }
-        return new Grammar(lexRuleName, rules);
+        return new Grammar(rules);
     }
 }

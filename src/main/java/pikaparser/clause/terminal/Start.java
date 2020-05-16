@@ -25,7 +25,7 @@ public class Start extends Terminal {
     }
 
     @Override
-    public Match match(MatchDirection matchDirection, MemoTable memoTable, MemoKey memoKey, String input) {
+    public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         if (memoKey.startPos == 0) {
             // Terminals are not memoized (i.e. don't look in the memo table)
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,

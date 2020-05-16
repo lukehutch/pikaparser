@@ -6,14 +6,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import pikaparser.clause.Clause;
-import pikaparser.clause.Clause.MatchDirection;
 import pikaparser.clause.aux.RuleRef;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.terminal.Nothing;
@@ -29,16 +28,11 @@ import pikaparser.memotable.MemoTable;
 public class Grammar {
     public final List<Rule> allRules;
     public final List<Clause> allClauses;
-    public Clause lexClause;
     public Map<String, Rule> ruleNameWithPrecedenceToRule;
 
     public static boolean DEBUG = false;
 
     public Grammar(List<Rule> rules) {
-        this(/* lexRuleName = */ null, rules);
-    }
-
-    public Grammar(String lexRuleName, List<Rule> rules) {
         if (rules.size() == 0) {
             throw new IllegalArgumentException("Grammar must consist of at least one rule");
         }
@@ -111,17 +105,6 @@ public class Grammar {
         for (var rule : allRules) {
             resolveRuleRefs(rule.labeledClause, ruleNameWithPrecedenceToRule,
                     ruleNameToLowestPrecedenceLevelRuleName, clausesVisitedResolveRuleRefs);
-        }
-
-        if (lexRuleName != null) {
-            // Find the toplevel lex rule, if lexRuleName is specified
-            var lexRule = ruleNameWithPrecedenceToRule.get(lexRuleName);
-            if (lexRule == null) {
-                throw new IllegalArgumentException("Unknown lex rule name: " + lexRuleName);
-            }
-            // Check the lex rule does not contain any cycles
-            checkNoDAGCycles(lexRule.labeledClause.clause);
-            lexClause = lexRule.labeledClause.clause;
         }
 
         // Find toplevel clauses (clauses that are not a subclause of any other clause)
@@ -233,35 +216,6 @@ public class Grammar {
         }
         discovered.remove(clause);
         finished.add(clause);
-    }
-
-    /**
-     * Check a {@link Clause} tree does not contain any cycles after RuleRef instances have been replaced by direct
-     * clause references (needed to ensure top-down lexing terminates, since lexing is not memoized).
-     */
-    private static void checkNoDAGCycles(Clause clause, Set<Clause> discovered, Set<Clause> finished) {
-        if (clause instanceof RuleRef) {
-            throw new IllegalArgumentException(
-                    "There should not be any " + RuleRef.class.getSimpleName() + " nodes left in grammar");
-        }
-        discovered.add(clause);
-        for (var labeledSubClause : clause.labeledSubClauses) {
-            var subClause = labeledSubClause.clause;
-            if (discovered.contains(subClause)) {
-                throw new IllegalArgumentException(
-                        "Lex rule's clause tree contains a cycle at " + labeledSubClause);
-            }
-            if (!finished.contains(subClause)) {
-                checkNoDAGCycles(subClause, discovered, finished);
-            }
-        }
-        discovered.remove(clause);
-        finished.add(clause);
-    }
-
-    /** Check a {@link Clause} tree does not contain any cycles (needed for top-down lex). */
-    private static void checkNoDAGCycles(Clause clause) {
-        checkNoDAGCycles(clause, new HashSet<Clause>(), new HashSet<Clause>());
     }
 
     private static void checkNoRefCycles(Clause clause, String selfRefRuleName, Set<Clause> visited) {
@@ -581,16 +535,12 @@ public class Grammar {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    private static Match matchAndMemoize(MemoKey memoKey, MatchDirection matchDirection, MemoTable memoTable,
-            String input, PriorityBlockingQueue<MemoKey> priorityQueue) {
-        var match = memoKey.clause.match(matchDirection, memoTable, memoKey, input);
+    private static Match matchAndMemoize(MemoKey memoKey, MemoTable memoTable, String input,
+            PriorityBlockingQueue<MemoKey> priorityQueue) {
+        var match = memoKey.clause.match(memoTable, memoKey, input);
         if (match != null) {
             // Memoize any new match, and schedule parent clauses for evaluation in the priority queue
-            if (matchDirection == MatchDirection.BOTTOM_UP) {
-                memoTable.addMatch(match, priorityQueue);
-            } else {
-                memoTable.addMatchRecursive(match, priorityQueue);
-            }
+            memoTable.addMatch(match, priorityQueue);
 
             if (DEBUG) {
                 System.out.println("Matched: " + memoKey.toStringWithRuleNames());
@@ -618,46 +568,26 @@ public class Grammar {
             }
         }
 
-        // If a lex rule was specified, seed the bottom-up parsing by running the lex rule top-down
-        if (lexClause != null) {
-            // Run lex preprocessing step, top-down, from each character position, skipping to end of each
-            // subsequent match
-            for (int startPos = 0; startPos < input.length();) {
-                // Match the lex rule top-down, populating the memo table for subclause matches
-                var memoKey = new MemoKey(lexClause, startPos);
-                var match = matchAndMemoize(memoKey, MatchDirection.TOP_DOWN, memoTable, input, priorityQueue);
-                var matchLen = match != null ? match.len : 0;
-
-                // Always move forward at least one character
-                if (DEBUG && matchLen == 0) {
-                    System.out.println((match == null ? "*** Lex rule did not match: "
-                            : "*** Lex rule matched zero characters: ") + memoKey.toStringWithRuleNames());
-                }
-                startPos += Math.max(1, matchLen);
-            }
-        } else {
-            // Find positions that all terminals match, and create the initial active set from parents of terminals,
-            // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
-            // to be added to the memo table, because the match status of a given terminal at a given position will
-            // never change).
-            allClauses.parallelStream() //
-                    .filter(clause -> clause instanceof Terminal
-                            // Don't match Nothing everywhere -- it always matches
-                            && !(clause instanceof Nothing))
-                    .forEach(clause -> {
-                        for (int startPos = 0; startPos < input.length(); startPos++) {
-                            // Terminals ignore the MatchDirection parameter
-                            matchAndMemoize(new MemoKey(clause, startPos), MatchDirection.BOTTOM_UP, memoTable,
-                                    input, priorityQueue);
-                        }
-                    });
-        }
+        // Find positions that all terminals match, and create the initial active set from parents of terminals,
+        // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
+        // to be added to the memo table, because the match status of a given terminal at a given position will
+        // never change).
+        allClauses.parallelStream() //
+                .filter(clause -> clause instanceof Terminal
+                        // Don't match Nothing everywhere -- it always matches
+                        && !(clause instanceof Nothing))
+                .forEach(clause -> {
+                    for (int startPos = 0; startPos < input.length(); startPos++) {
+                        // Terminals ignore the MatchDirection parameter
+                        matchAndMemoize(new MemoKey(clause, startPos), memoTable, input, priorityQueue);
+                    }
+                });
 
         // Main parsing loop
         while (!priorityQueue.isEmpty()) {
             // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
             // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
-            matchAndMemoize(priorityQueue.remove(), MatchDirection.BOTTOM_UP, memoTable, input, priorityQueue);
+            matchAndMemoize(priorityQueue.remove(), memoTable, input, priorityQueue);
         }
         return memoTable;
     }

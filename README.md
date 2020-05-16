@@ -77,16 +77,6 @@ discriminant=b*b-4*a*c;
 <img alt="Alternative view of parse tree" width="344" height="229" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/AST.png">
 </p>
 
-### The use of a `Lex` preprocessing rule
-
-If the grammar contains a rule named `Lex` of the form
-
-```
-Lex = [0-9]+ / [a-z]+ / '=' / '+' / '*' / '/';
-```
-
-then lex preprocessing is applied, wherein the above rule is matched repeatedly until all input is consumed. This can dramatically reduce the size of the memo table due to avoidance of spurious matches -- see the paper for more information.
-
 ### Error recovery
 
 You can recover from syntax errors by finding the next match of any grammar rule of interest. For example:

@@ -1,10 +1,16 @@
 package pikaparser.memotable;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map.Entry;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.nonterminal.OneOrMore;
+import pikaparser.clause.nonterminal.Seq;
 import pikaparser.grammar.MetaGrammar;
 import pikaparser.parser.ASTNode;
 
@@ -36,24 +42,40 @@ public class Match {
     }
 
     /**
-     * Get subclause matches. Automatically flattens the right-recursive structure of {@link OneOrMore} nodes,
-     * collecting the subclause matches into a single array.
+     * Get subclause matches. Automatically flattens the right-recursive structure of {@link OneOrMore} and
+     * {@link Seq} nodes, collecting the subclause matches into a single array of (AST node label, match) tuples.
      */
-    public Match[] getSubClauseMatches() {
+    public List<Entry<String, Match>> getSubClauseMatches() {
+        if (subClauseMatches.length == 0) {
+            // For terminals, or empty matches triggered by clauses that can match zero characters --
+            // see MemoTable.lookUpBestMatch
+            return Collections.emptyList();
+        }
         if (memoKey.clause instanceof OneOrMore) {
-            // Flatten right-recursive structure of OneOrMore parse tree
-            var subClauseMatchesToUse = new ArrayList<Match>();
+            // Flatten right-recursive structure of OneOrMore parse subtree
+            var subClauseMatchesToUse = new ArrayList<Entry<String, Match>>();
             for (Match curr = this;; curr = curr.subClauseMatches[1]) {
-                subClauseMatchesToUse.add(curr.subClauseMatches[0]);
+                subClauseMatchesToUse.add(new SimpleEntry<>(curr.memoKey.clause.labeledSubClauses[0].astNodeLabel,
+                        curr.subClauseMatches[0]));
                 if (curr.subClauseMatches.length == 1) {
                     // Reached end of right-recursive matches
                     break;
                 }
             }
-            return subClauseMatchesToUse.toArray(new Match[0]);
+            return subClauseMatchesToUse;
+        } else if (memoKey.clause instanceof First) {
+            // For First, pair the appropriate AST node label with the one and only subclause match
+            return Arrays.asList(new SimpleEntry<>(
+                    memoKey.clause.labeledSubClauses[firstMatchingSubClauseIdx].astNodeLabel, subClauseMatches[0]));
         } else {
-            // For other clause types, just recurse to subclause matches
-            return subClauseMatches;
+            // For other clause types, return labeled subclause matches
+            var numSubClauses = memoKey.clause.labeledSubClauses.length;
+            var subClauseMatchesToUse = new ArrayList<Entry<String, Match>>(numSubClauses);
+            for (int i = 0; i < numSubClauses; i++) {
+                subClauseMatchesToUse.add(
+                        new SimpleEntry<>(memoKey.clause.labeledSubClauses[i].astNodeLabel, subClauseMatches[i]));
+            }
+            return subClauseMatchesToUse;
         }
     }
 
@@ -85,22 +107,13 @@ public class Match {
         return input.substring(memoKey.startPos, memoKey.startPos + len);
     }
 
-    private String getSubClauseASTNodeLabel(int subClauseMatchIdx) {
-        // For OneOrMore clauses, there's only one subclause (and therefore only one subclause label),
-        // no matter how many matches. For First and Longest clauses, firstMatchingSubClauseIdx gives the
-        // index of the matching clause (for other clause types, firstMatchingSubClauseIdx is zero).
-        // For Seq, subClauseMatchIdx pairs subclause labels with subclauses.
-        var subClauseLabelIdx = memoKey.clause instanceof OneOrMore ? 0
-                : firstMatchingSubClauseIdx + subClauseMatchIdx;
-        return memoKey.clause.labeledSubClauses[subClauseLabelIdx].astNodeLabel;
-    }
-
     private void toAST(ASTNode parent, String input) {
         // Recurse to descendants
         var subClauseMatchesToUse = getSubClauseMatches();
-        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
-            var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
-            var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
+        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
+            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
+            var subClauseASTNodeLabel = subClauseMatchEnt.getKey();
+            var subClauseMatch = subClauseMatchEnt.getValue();
             ASTNode parentOfSubclause = parent;
             if (subClauseASTNodeLabel != null) {
                 // Create an AST node for any labeled sub-clauses
@@ -128,10 +141,10 @@ public class Match {
             inp += "...";
         }
         inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-        
+
         // Uncomment for double-spaced rows
         // buf.append(indentStr + "│\n");
-        
+
         var ruleNames = memoKey.clause.getRuleNames();
         var toStr = memoKey.clause.toString();
         var astNodeLabelNeedsParens = MetaGrammar.addParensAroundASTNodeLabel(memoKey.clause);
@@ -145,11 +158,12 @@ public class Match {
 
         // Recurse to descendants
         var subClauseMatchesToUse = getSubClauseMatches();
-        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.length; subClauseMatchIdx++) {
-            var subClauseMatch = subClauseMatchesToUse[subClauseMatchIdx];
-            var subClauseASTNodeLabel = getSubClauseASTNodeLabel(subClauseMatchIdx);
+        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
+            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
+            var subClauseASTNodeLabel = subClauseMatchEnt.getKey();
+            var subClauseMatch = subClauseMatchEnt.getValue();
             subClauseMatch.renderTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
-                    subClauseMatchIdx == subClauseMatchesToUse.length - 1, buf);
+                    subClauseMatchIdx == subClauseMatchesToUse.size() - 1, buf);
         }
     }
 
@@ -163,12 +177,13 @@ public class Match {
         StringBuilder buf = new StringBuilder();
         buf.append(memoKey.toStringWithRuleNames() + "+" + len + " => [ ");
         var subClauseMatchesToUse = getSubClauseMatches();
-        for (int i = 0; i < subClauseMatchesToUse.length; i++) {
-            var s = subClauseMatchesToUse[i];
-            if (i > 0) {
+        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
+            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
+            var subClauseMatch = subClauseMatchEnt.getValue();
+            if (subClauseMatchIdx > 0) {
                 buf.append(" ; ");
             }
-            buf.append(s.toStringWithRuleNames());
+            buf.append(subClauseMatch.toStringWithRuleNames());
         }
         buf.append(" ]");
         return buf.toString();

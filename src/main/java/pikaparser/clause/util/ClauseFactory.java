@@ -8,7 +8,6 @@ import pikaparser.clause.aux.ASTNodeLabel;
 import pikaparser.clause.aux.RuleRef;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.nonterminal.FollowedBy;
-import pikaparser.clause.nonterminal.Longest;
 import pikaparser.clause.nonterminal.NotFollowedBy;
 import pikaparser.clause.nonterminal.OneOrMore;
 import pikaparser.clause.nonterminal.Seq;
@@ -67,14 +66,6 @@ public class ClauseFactory {
 
     public static Clause first(List<Clause> subClauses) {
         return first(subClauses.toArray(new Clause[0]));
-    }
-
-    public static Clause longest(Clause... subClauses) {
-        return new Longest(subClauses);
-    }
-
-    public static Clause longest(List<Clause> subClauses) {
-        return longest(subClauses.toArray(new Clause[0]));
     }
 
     public static Clause followedBy(Clause subClause) {
