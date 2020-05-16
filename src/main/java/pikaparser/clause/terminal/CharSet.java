@@ -10,6 +10,7 @@ import java.util.Set;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
+import pikaparser.parser.utils.StringUtils;
 
 public class CharSet extends Terminal {
 
@@ -106,23 +107,7 @@ public class CharSet extends Terminal {
         boolean isSingleChar = !invertMatch && charsSorted.size() == 1;
         if (isSingleChar) {
             char c = charsSorted.iterator().next();
-            if (c == '\'') {
-                buf.append("'\\''");
-            } else if (c == '\\') {
-                buf.append("'\\\\'");
-            } else if (c >= 32 && c <= 126) {
-                buf.append("'" + c + "'");
-            } else if (c == '\n') {
-                buf.append("'\\n'");
-            } else if (c == '\r') {
-                buf.append("'\\r'");
-            } else if (c == '\t') {
-                buf.append("'\\t'");
-            } else if (c == '\f') {
-                buf.append("'\\f'");
-            } else {
-                buf.append("'\\u" + String.format("%04x", (int) c) + "'");
-            }
+            buf.append(StringUtils.escapeChar(c));
         } else {
             if (!charsSorted.isEmpty()) {
                 buf.append('[');
@@ -131,25 +116,7 @@ public class CharSet extends Terminal {
                 }
                 for (int i = 0; i < charsSorted.size(); i++) {
                     char c = charsSorted.get(i);
-                    if (c == '\\') {
-                        buf.append("\\\\");
-                    } else if (c == ']') {
-                        buf.append("\\]");
-                    } else if (c == '[') {
-                        buf.append("\\[");
-                    } else if (c == '^' && i == 0) {
-                        buf.append("\\^");
-                    } else if (c >= 32 && c <= 126) {
-                        buf.append(c);
-                    } else if (c == '\n') {
-                        buf.append("\\n");
-                    } else if (c == '\r') {
-                        buf.append("\\r");
-                    } else if (c == '\t') {
-                        buf.append("\\t");
-                    } else {
-                        buf.append("\\u" + String.format("%04x", (int) c));
-                    }
+                    buf.append(StringUtils.escapeCharRangeChar(c));
                     int j = i + 1;
                     while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
                         j++;

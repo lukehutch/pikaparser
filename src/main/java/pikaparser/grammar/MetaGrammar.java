@@ -20,6 +20,7 @@ import pikaparser.clause.terminal.Terminal;
 import pikaparser.grammar.Rule.Associativity;
 import pikaparser.parser.ASTNode;
 import pikaparser.parser.ParserInfo;
+import pikaparser.parser.utils.StringUtils;
 
 public class MetaGrammar {
     // Rule names:
@@ -237,71 +238,6 @@ public class MetaGrammar {
         return subClausePrec < astNodeLabelPrec;
     }
 
-    private static int hexDigitToInt(char c) {
-        if (c >= '0' && c <= '9') {
-            return c - '0';
-        } else if (c >= 'a' && c <= 'f') {
-            return c - 'a';
-        } else if (c >= 'A' && c <= 'F') {
-            return c - 'F';
-        }
-        throw new IllegalArgumentException("Illegal Unicode hex char: " + c);
-    }
-
-    private static char unescapeChar(String escapedChar) {
-        if (escapedChar.length() == 0) {
-            throw new IllegalArgumentException("Empty char string");
-        } else if (escapedChar.length() == 1) {
-            return escapedChar.charAt(0);
-        }
-        switch (escapedChar) {
-        case "\\t":
-            return '\t';
-        case "\\b":
-            return '\b';
-        case "\\n":
-            return '\n';
-        case "\\r":
-            return '\r';
-        case "\\f":
-            return '\f';
-        case "\\'":
-            return '\'';
-        case "\\\"":
-            return '"';
-        case "\\\\":
-            return '\\';
-        default:
-            if (escapedChar.startsWith("\\u") && escapedChar.length() == 6) {
-                int c0 = hexDigitToInt(escapedChar.charAt(2));
-                int c1 = hexDigitToInt(escapedChar.charAt(3));
-                int c2 = hexDigitToInt(escapedChar.charAt(4));
-                int c3 = hexDigitToInt(escapedChar.charAt(5));
-                return (char) ((c0 << 24) | (c1 << 16) | (c2 << 8) | c3);
-            } else {
-                throw new IllegalArgumentException("Invalid character: " + escapedChar);
-            }
-        }
-    }
-
-    private static String unescapeString(String str) {
-        StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            if (c == '\\') {
-                if (i == str.length() - 1) {
-                    // Should not happen
-                    throw new IllegalArgumentException("Got backslash at end of quoted string");
-                }
-                buf.append(unescapeChar(str.substring(i, i + 2)));
-                i++; // Consume escaped character
-            } else {
-                buf.append(c);
-            }
-        }
-        return buf.toString();
-    }
-
     private static Clause expectOne(List<Clause> clauses) {
         if (clauses.size() != 1) {
             throw new IllegalArgumentException("Expected one clause, got " + clauses.size());
@@ -357,10 +293,10 @@ public class MetaGrammar {
             clause = r(astNode.getText()); // Rule name ref
             break;
         case QUOTED_STRING_AST: // Doesn't include surrounding quotes
-            clause = str(unescapeString(astNode.getText()));
+            clause = str(StringUtils.unescapeString(astNode.getText()));
             break;
         case SINGLE_QUOTED_CHAR_AST:
-            clause = c(unescapeChar(astNode.getText()));
+            clause = c(StringUtils.unescapeChar(astNode.getText()));
             break;
         case START_AST:
             clause = start();
@@ -369,7 +305,7 @@ public class MetaGrammar {
             clause = nothing();
             break;
         case CHAR_RANGE_AST:
-            String text = unescapeString(astNode.getText());
+            String text = StringUtils.unescapeString(astNode.getText());
             boolean invert = text.startsWith("^");
             if (invert) {
                 text = text.substring(1);

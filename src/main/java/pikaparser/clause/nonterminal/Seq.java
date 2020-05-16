@@ -10,8 +10,6 @@ import pikaparser.memotable.MemoTable;
 public class Seq extends Clause {
 
     public Seq(Clause... subClauses) {
-        // Have to call super-constructor as first statement, but we have to do some argument processing
-        // below first, so pass null to the super constructor as a placeholder
         super(subClauses);
         if (subClauses.length < 2) {
             throw new IllegalArgumentException(Seq.class.getSimpleName() + " expects 2 or more subclauses");
