@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 
 import pikaparser.clause.Clause;
@@ -295,7 +296,7 @@ public class ParserInfo {
     }
 
     /** Print syntax errors obtained from {@link Grammar#getSyntaxErrors(MemoTable, String, String...)}. */
-    public static void printSyntaxErrors(TreeMap<Integer, Entry<Integer, String>> syntaxErrors) {
+    public static void printSyntaxErrors(NavigableMap<Integer, Entry<Integer, String>> syntaxErrors) {
         if (!syntaxErrors.isEmpty()) {
             System.out.println("\nSYNTAX ERRORS:\n");
             for (var ent : syntaxErrors.entrySet()) {
