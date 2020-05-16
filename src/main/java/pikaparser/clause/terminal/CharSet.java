@@ -107,7 +107,9 @@ public class CharSet extends Terminal {
         boolean isSingleChar = !invertMatch && charsSorted.size() == 1;
         if (isSingleChar) {
             char c = charsSorted.iterator().next();
+            buf.append('\'');
             buf.append(StringUtils.escapeChar(c));
+            buf.append('\'');
         } else {
             if (!charsSorted.isEmpty()) {
                 buf.append('[');
