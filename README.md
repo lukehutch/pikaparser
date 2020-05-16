@@ -77,6 +77,18 @@ discriminant=b*b-4*a*c;
 <img alt="Alternative view of parse tree" width="344" height="229" src="https://raw.githubusercontent.com/lukehutch/pikaparser/master/docs/AST.png">
 </p>
 
+### Printing syntax errors
+
+To find syntax errors, call:
+
+```
+NavigableMap<Integer, Entry<Integer, String>> syntaxErrors =
+        grammar.getSyntaxErrors(memoTable, input, "Program", "Statement", "Expr");
+```
+
+or similar (list the names of all all the grammar rules that should span all of the input in the last varargs parameter). Any character range that is not spanned by a match of one of the named rules is returned in the result. You can print out the characters in those ranges as syntax errors. The entries in the returned `NavigableMap` have as the key the start position of a syntax error (a zero-indexed character position from the beginning of the string), and as the value an entry consisting of the end position of the syntax error and the span of the input between the start position and the end position.  
+
+
 ### Error recovery
 
 You can recover from syntax errors by finding the next match of any grammar rule of interest. For example:

@@ -497,7 +497,7 @@ public class Grammar {
      * Get any syntax errors in the parse, as a map from start position to a tuple, (end position, span of input
      * string between start position and end position).
      */
-    public TreeMap<Integer, Entry<Integer, String>> getSyntaxErrors(MemoTable memoTable, String input,
+    public NavigableMap<Integer, Entry<Integer, String>> getSyntaxErrors(MemoTable memoTable, String input,
             String... syntaxCoverageRuleNames) {
         // Find the range of characters spanned by matches for each of the coverageRuleNames
         var parsedRanges = new TreeMap<Integer, Entry<Integer, String>>();
