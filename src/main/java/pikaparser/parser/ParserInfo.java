@@ -397,7 +397,7 @@ public class ParserInfo {
             System.out.println("\nToplevel rule \"" + topLevelRuleName + "\" does not exist");
         }
 
-        var syntaxErrors = grammar.getSyntaxErrors(memoTable, input, syntaxCoverageRuleNames);
+        var syntaxErrors = memoTable.getSyntaxErrors(grammar, input, syntaxCoverageRuleNames);
         if (!syntaxErrors.isEmpty()) {
             printSyntaxErrors(syntaxErrors);
         }
