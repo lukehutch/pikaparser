@@ -16,6 +16,7 @@ import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 public abstract class Clause {
+    /** Subclauses, paired with their AST node label (if there is one). */
     public LabeledClause[] labeledSubClauses;
 
     /** Rules this clause is a toplevel clause of */
@@ -56,6 +57,7 @@ public abstract class Clause {
         }
     }
 
+    /** Register this clause with a rule (used by {@link #toStringWithRuleNames()}). */
     public void registerRule(Rule rule) {
         if (rules == null) {
             rules = new ArrayList<>();
@@ -63,6 +65,7 @@ public abstract class Clause {
         rules.add(rule);
     }
 
+    /** Unregister this clause from a rule. */
     public void unregisterRule(Rule rule) {
         if (rules != null) {
             rules.remove(rule);
@@ -101,6 +104,7 @@ public abstract class Clause {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get the names of rules that this clause is the root clause of. */
     public String getRuleNames() {
         return rules == null ? ""
                 : String.join(", ",
