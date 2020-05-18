@@ -356,8 +356,14 @@ public class MetaGrammar {
         if (topLevelMatches.isEmpty()) {
             throw new IllegalArgumentException("Toplevel rule \"" + GRAMMAR + "\" did not match");
         } else if (topLevelMatches.size() > 1) {
-            throw new IllegalArgumentException("Multiple toplevel matches");
+            System.out.println("\nMultiple toplevel matches:");
+            for (var topLevelMatch : topLevelMatches) {
+                var topLevelASTNode = topLevelMatch.toAST("<root>", input);
+                System.out.println(topLevelASTNode);
+            }
+            throw new IllegalArgumentException("Stopping");
         }
+
         var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", input);
 
         // System.out.println(topLevelASTNode);

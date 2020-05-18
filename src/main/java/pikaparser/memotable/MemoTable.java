@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import pikaparser.clause.Clause;
 import pikaparser.grammar.Grammar;
+import pikaparser.parser.utils.GrammarUtils;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
@@ -92,7 +93,7 @@ public class MemoTable {
     public NavigableMap<Integer, MemoEntry> getNavigableMatches(Clause clause) {
         return memoTable.get(clause);
     }
-    
+
     /**
      * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching
      * from the beginning of the string, then looking for the next match after the end of the current match.
@@ -177,40 +178,6 @@ public class MemoTable {
         }
         return nonMatches;
     }
-    
-    /** Add a range to a union of ranges. */
-    private static void addRange(int startPos, int endPos, String input,
-            TreeMap<Integer, Entry<Integer, String>> ranges) {
-        // Try merging new range with floor entry in TreeMap
-        var floorEntry = ranges.floorEntry(startPos);
-        var floorEntryStart = floorEntry == null ? null : floorEntry.getKey();
-        var floorEntryEnd = floorEntry == null ? null : floorEntry.getValue().getKey();
-        int newEntryRangeStart;
-        int newEntryRangeEnd;
-        if (floorEntryStart == null || floorEntryEnd < startPos) {
-            // There is no startFloorEntry, or startFloorEntry ends before startPos -- add a new entry
-            newEntryRangeStart = startPos;
-            newEntryRangeEnd = endPos;
-        } else {
-            // startFloorEntry overlaps with range -- extend startFloorEntry
-            newEntryRangeStart = floorEntryStart;
-            newEntryRangeEnd = Math.max(floorEntryEnd, endPos);
-        }
-        var newEntryMatchStr = input.substring(startPos, endPos);
-        ranges.put(newEntryRangeStart, new SimpleEntry<>(newEntryRangeEnd, newEntryMatchStr));
-
-        // Try merging new range with the following entry in TreeMap
-        var higherEntry = ranges.higherEntry(newEntryRangeStart);
-        var higherEntryStart = higherEntry == null ? null : higherEntry.getKey();
-        var higherEntryEnd = higherEntry == null ? null : higherEntry.getValue().getKey();
-        if (higherEntryStart != null && higherEntryStart <= newEntryRangeEnd) {
-            // Expanded-range entry overlaps with the following entry -- collapse them into one
-            ranges.remove(higherEntryStart);
-            var expandedRangeEnd = Math.max(newEntryRangeEnd, higherEntryEnd);
-            var expandedRangeMatchStr = input.substring(newEntryRangeStart, expandedRangeEnd);
-            ranges.put(newEntryRangeStart, new SimpleEntry<>(expandedRangeEnd, expandedRangeMatchStr));
-        }
-    }
 
     /**
      * Get any syntax errors in the parse, as a map from start position to a tuple, (end position, span of input
@@ -224,7 +191,8 @@ public class MemoTable {
             var rule = grammar.ruleNameWithPrecedenceToRule.get(coverageRuleName);
             if (rule != null) {
                 for (var match : getNonOverlappingMatches(rule.labeledClause.clause)) {
-                    addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input, parsedRanges);
+                    GrammarUtils.addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input,
+                            parsedRanges);
                 }
             }
         }

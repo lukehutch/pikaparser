@@ -83,7 +83,7 @@ To find syntax errors, call:
 
 ```
 NavigableMap<Integer, Entry<Integer, String>> syntaxErrors =
-        grammar.getSyntaxErrors(memoTable, input, "Program", "Statement", "Expr");
+        memoTable.getSyntaxErrors(grammar, input, "Program", "Statement", "Expr");
 ```
 
 or similar (list the names of all all the grammar rules that should span all of the input in the last varargs parameter). Any character range that is not spanned by a match of one of the named rules is returned in the result. You can print out the characters in those ranges as syntax errors. The entries in the returned `NavigableMap` have as the key the start position of a syntax error (a zero-indexed character position from the beginning of the string), and as the value an entry consisting of the end position of the syntax error and the span of the input between the start position and the end position.  
