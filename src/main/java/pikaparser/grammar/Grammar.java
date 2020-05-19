@@ -12,7 +12,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 import pikaparser.clause.Clause;
 import pikaparser.clause.aux.RuleRef;
 import pikaparser.clause.terminal.Nothing;
-import pikaparser.clause.terminal.Start;
 import pikaparser.clause.terminal.Terminal;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoEntry;
