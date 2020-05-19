@@ -16,6 +16,11 @@ public class NotFollowedBy extends Clause {
     }
 
     @Override
+    public void determineWhetherCanMatchZeroChars() {
+        canMatchZeroChars = true;
+    }
+
+    @Override
     public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         var labeledSubClause = labeledSubClauses[0].clause;
         var subClauseMemoKey = new MemoKey(labeledSubClause, memoKey.startPos);

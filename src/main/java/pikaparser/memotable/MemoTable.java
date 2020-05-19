@@ -76,15 +76,36 @@ public class MemoTable {
     }
 
     /** Add a new {@link Match} to the memo table. */
-    public void addMatch(Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
-        numMatchObjectsCreated.incrementAndGet();
+    public void addMatch(MemoKey memoKey, Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
+        if (match != null) {
+            numMatchObjectsCreated.incrementAndGet();
 
-        // Get the memo entry for memoKey if already present; if not, create a new entry
-        var clauseEntries = memoTable.computeIfAbsent(match.memoKey.clause, c -> new ConcurrentSkipListMap<>());
-        var memoEntry = clauseEntries.computeIfAbsent(match.memoKey.startPos, s -> new MemoEntry());
+            // Get the memo entry for memoKey if already present; if not, create a new entry
+            var clauseEntries = memoTable.computeIfAbsent(memoKey.clause, c -> new ConcurrentSkipListMap<>());
+            var memoEntry = clauseEntries.computeIfAbsent(memoKey.startPos, s -> new MemoEntry());
 
-        // Record the new match in the memo entry, and schedule the memo entry to be updated  
-        memoEntry.addMatch(match, priorityQueue, numMatchObjectsMemoized);
+            // Record the new match in the memo entry, and schedule the memo entry to be updated  
+            memoEntry.setNewMatch(match, numMatchObjectsMemoized);
+        }
+
+        for (var seedParentClause : memoKey.clause.seedParentClauses) {
+            // If there was a valid match, or if there was no match but the parent clause can match
+            // zero characters regardless, schedule the parent clause for matching
+            if (match != null || seedParentClause.canMatchZeroChars) {
+                var parentMemoKey = new MemoKey(seedParentClause, memoKey.startPos);
+                priorityQueue.add(parentMemoKey);
+
+                if (Grammar.DEBUG) {
+                    System.out
+                            .println("    Following seed parent clause: " + parentMemoKey.toStringWithRuleNames());
+                }
+            }
+        }
+
+        if (Grammar.DEBUG) {
+            System.out.println(
+                    (match != null ? "Matched: " : "Failed to match: ") + memoKey.toStringWithRuleNames());
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

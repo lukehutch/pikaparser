@@ -28,6 +28,9 @@ public abstract class Clause {
     /** If true, the clause can match zero characters. */
     public boolean canMatchZeroChars;
 
+    /** If true, the clause is a descendant of a {@link Seq} clause that can match zero characters. */
+    public boolean descendantOfZeroLenSeq;
+
     /** Index in the topological sort order of clauses, bottom-up. */
     public int clauseIdx;
 
@@ -74,25 +77,22 @@ public abstract class Clause {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Find which subclauses need to add this clause as a "seed parent clause". */
+    /** Find which subclauses need to add this clause as a "seed parent clause". Overridden in {@link Seq}. */
     public void addAsSeedParentClause() {
-        // Default implementation: all subcluses will seed this parent clause. Overridden by Seq.
+        // Default implementation: all subclauses will seed this parent clause.
         for (var labeledSubClause : labeledSubClauses) {
             labeledSubClause.clause.seedParentClauses.add(this);
         }
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
     /**
      * Sets {@link #canMatchZeroChars} to true if this clause can match zero characters, i.e. always matches at any
-     * input position.
+     * input position. Called bottom-up.
      * 
      * <p>
      * Overridden in subclasses.
      */
-    public void determineWhetherCanMatchZeroChars() {
-    }
+    public abstract void determineWhetherCanMatchZeroChars();
 
     // -------------------------------------------------------------------------------------------------------------
 

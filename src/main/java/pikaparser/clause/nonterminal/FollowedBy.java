@@ -17,9 +17,7 @@ public class FollowedBy extends Clause {
 
     @Override
     public void determineWhetherCanMatchZeroChars() {
-        if (labeledSubClauses[0].clause.canMatchZeroChars) {
-            canMatchZeroChars = true;
-        }
+        canMatchZeroChars = true;
     }
 
     @Override

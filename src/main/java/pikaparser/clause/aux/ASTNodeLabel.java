@@ -14,6 +14,10 @@ public class ASTNodeLabel extends Clause {
     }
 
     @Override
+    public void determineWhetherCanMatchZeroChars() {
+    }
+
+    @Override
     public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
     }

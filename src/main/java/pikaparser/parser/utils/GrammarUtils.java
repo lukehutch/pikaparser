@@ -51,7 +51,7 @@ public class GrammarUtils {
             ranges.put(newEntryRangeStart, new SimpleEntry<>(expandedRangeEnd, expandedRangeMatchStr));
         }
     }
-    
+
     /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
     private static void findTerminals(Clause clause, HashSet<Clause> visited, List<Clause> terminalsOut) {
         if (visited.add(clause)) {
@@ -253,7 +253,7 @@ public class GrammarUtils {
         for (var rule : rules) {
             if (precedenceToRule.put(rule.precedence, rule) != null) {
                 throw new IllegalArgumentException("Multiple rules with name " + ruleNameWithoutPrecedence
-                        + " and precedence " + rule.precedence);
+                        + (rule.precedence == -1 ? "" : " and precedence " + rule.precedence));
             }
         }
         // Get rules in ascending order of precedence

@@ -16,6 +16,10 @@ public class CharSeq extends Terminal {
     }
 
     @Override
+    public void determineWhetherCanMatchZeroChars() {
+    }
+
+    @Override
     public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         if (memoKey.startPos <= input.length() - str.length()
                 && input.regionMatches(ignoreCase, memoKey.startPos, str, 0, str.length())) {

@@ -25,7 +25,7 @@ public class Grammar {
     public final List<Clause> allClauses;
     public Map<String, Rule> ruleNameWithPrecedenceToRule;
 
-    public static boolean DEBUG = false;
+    public static boolean DEBUG = true;
 
     public Grammar(List<Rule> rules) {
         if (rules.size() == 0) {
@@ -119,23 +119,6 @@ public class Grammar {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Match a memoKey.clause at memoKey.startPos, and if a match is found, add it to memoTable. */
-    private static Match matchAndMemoize(MemoKey memoKey, MemoTable memoTable, String input,
-            PriorityBlockingQueue<MemoKey> priorityQueue) {
-        var match = memoKey.clause.match(memoTable, memoKey, input);
-        if (match != null) {
-            // Memoize any new match, and schedule parent clauses for evaluation in the priority queue
-            memoTable.addMatch(match, priorityQueue);
-
-            if (DEBUG) {
-                System.out.println("Matched: " + memoKey.toStringWithRuleNames());
-            }
-        } else if (DEBUG) {
-            System.out.println("Failed to match: " + memoKey.toStringWithRuleNames());
-        }
-        return match;
-    }
-
     /** Main parsing method. */
     public MemoTable parse(String input) {
         // The memo table
@@ -165,7 +148,9 @@ public class Grammar {
                 .forEach(clause -> {
                     for (int startPos = 0; startPos < input.length(); startPos++) {
                         // Terminals ignore the MatchDirection parameter
-                        matchAndMemoize(new MemoKey(clause, startPos), memoTable, input, priorityQueue);
+                        var memoKey = new MemoKey(clause, startPos);
+                        var match = clause.match(memoTable, memoKey, input);
+                        memoTable.addMatch(memoKey, match, priorityQueue);
                     }
                 });
 
@@ -173,7 +158,9 @@ public class Grammar {
         while (!priorityQueue.isEmpty()) {
             // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
             // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
-            matchAndMemoize(priorityQueue.remove(), memoTable, input, priorityQueue);
+            var memoKey = priorityQueue.remove();
+            var match = memoKey.clause.match(memoTable, memoKey, input);
+            memoTable.addMatch(memoKey, match, priorityQueue);
         }
         return memoTable;
     }

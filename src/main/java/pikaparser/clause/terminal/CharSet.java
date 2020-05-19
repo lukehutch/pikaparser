@@ -70,7 +70,7 @@ public class CharSet extends Terminal {
         return this;
     }
 
-    private boolean inputMatches(MemoKey memoKey, String input) {
+    private boolean matchesInput(MemoKey memoKey, String input) {
         if (memoKey.startPos >= input.length()) {
             return false;
         }
@@ -83,7 +83,7 @@ public class CharSet extends Terminal {
             // SubCharSets may be inverted, so need to test each individually for efficiency,
             // rather than producing a large Set<Character> for all chars of an inverted CharSet
             for (CharSet subCharSet : subCharSets) {
-                if (subCharSet.inputMatches(memoKey, input)) {
+                if (subCharSet.matchesInput(memoKey, input)) {
                     return true;
                 }
             }
@@ -92,13 +92,26 @@ public class CharSet extends Terminal {
     }
 
     @Override
+    public void determineWhetherCanMatchZeroChars() {
+    }
+    
+    @Override
     public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
-        if (inputMatches(memoKey, input)) {
+        if (matchesInput(memoKey, input)) {
             // Terminals are not memoized (i.e. don't look in the memo table)
             return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 1,
                     Match.NO_SUBCLAUSE_MATCHES);
         }
         return null;
+    }
+
+    private void getCharSets(List<CharSet> charSets) {
+        if (!charSet.isEmpty()) {
+            charSets.add(this);
+        }
+        for (var subCharSet : subCharSets) {
+            subCharSet.getCharSets(charSets);
+        }
     }
 
     private void toString(StringBuilder buf) {
@@ -131,15 +144,6 @@ public class CharSet extends Terminal {
                 }
                 buf.append(']');
             }
-        }
-    }
-
-    private void getCharSets(List<CharSet> charSets) {
-        if (!charSet.isEmpty()) {
-            charSets.add(this);
-        }
-        for (var subCharSet : subCharSets) {
-            subCharSet.getCharSets(charSets);
         }
     }
 
