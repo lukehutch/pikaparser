@@ -24,7 +24,7 @@ public class Grammar {
     public final List<Clause> allClauses;
     public Map<String, Rule> ruleNameWithPrecedenceToRule;
 
-    public static boolean DEBUG = true;
+    public static boolean DEBUG = false;
 
     public Grammar(List<Rule> rules) {
         if (rules.size() == 0) {
