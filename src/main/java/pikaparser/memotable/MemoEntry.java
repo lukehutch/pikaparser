@@ -15,12 +15,10 @@ public class MemoEntry {
 
     /**
      * Add a new match to this {@link MemoEntry}, if it is better than the previous best match.
-     *
-     * <p>
-     * This method is potentially run in a multiple threads for a single {@link MemoEntry}, in the first stage of
-     * the iteration.
+     * 
+     * @return true if the match was updated.
      */
-    public void setNewMatch(Match newMatch, AtomicInteger numMatchObjectsMemoized) {
+    public boolean setBestMatch(Match newMatch, AtomicInteger numMatchObjectsMemoized) {
         // If the new match is better than the current best match from the previous iteration
         if ((bestMatch == null || newMatch.isBetterThan(bestMatch))) {
             // Set the new best match (this should only be done once for each memo entry in each
@@ -35,6 +33,9 @@ public class MemoEntry {
             if (Grammar.DEBUG) {
                 System.out.println("Setting new best match: " + newMatch.toStringWithRuleNames());
             }
+            return true;
+        } else {
+            return false;
         }
     }
 }

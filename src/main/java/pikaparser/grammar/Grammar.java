@@ -137,8 +137,7 @@ public class Grammar {
                         // Don't match Nothing everywhere -- it always matches
                         && !(clause instanceof Nothing))
                 .forEach(clause -> {
-                    for (int startPos = 0; startPos < input.length(); startPos++) {
-                        // Terminals ignore the MatchDirection parameter
+                    for (var startPos = 0; startPos < input.length(); startPos++) {
                         var memoKey = new MemoKey(clause, startPos);
                         var match = clause.match(memoTable, memoKey, input);
                         memoTable.addMatch(memoKey, match, priorityQueue);

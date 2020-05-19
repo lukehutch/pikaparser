@@ -80,6 +80,7 @@ public class MemoTable {
      * matching if the match is non-null or if the parent clause can match zero characters.
      */
     public void addMatch(MemoKey memoKey, Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
+        var bestMatchUpdated = false;
         if (match != null) {
             numMatchObjectsCreated.incrementAndGet();
 
@@ -88,13 +89,13 @@ public class MemoTable {
             var memoEntry = clauseEntries.computeIfAbsent(memoKey.startPos, s -> new MemoEntry());
 
             // Record the new match in the memo entry, and schedule the memo entry to be updated  
-            memoEntry.setNewMatch(match, numMatchObjectsMemoized);
+            bestMatchUpdated = memoEntry.setBestMatch(match, numMatchObjectsMemoized);
         }
 
         for (var seedParentClause : memoKey.clause.seedParentClauses) {
             // If there was a valid match, or if there was no match but the parent clause can match
             // zero characters regardless, schedule the parent clause for matching
-            if (match != null || seedParentClause.canMatchZeroChars) {
+            if (bestMatchUpdated || seedParentClause.canMatchZeroChars) {
                 var parentMemoKey = new MemoKey(seedParentClause, memoKey.startPos);
                 priorityQueue.add(parentMemoKey);
 
