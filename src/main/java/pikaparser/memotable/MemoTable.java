@@ -75,7 +75,10 @@ public class MemoTable {
         return null;
     }
 
-    /** Add a new {@link Match} to the memo table. */
+    /**
+     * Add a new {@link Match} to the memo table, if the match is non-null. Schedule seed parent clauses for
+     * matching if the match is non-null or if the parent clause can match zero characters.
+     */
     public void addMatch(MemoKey memoKey, Match match, PriorityBlockingQueue<MemoKey> priorityQueue) {
         if (match != null) {
             numMatchObjectsCreated.incrementAndGet();
@@ -103,8 +106,8 @@ public class MemoTable {
         }
 
         if (Grammar.DEBUG) {
-            System.out.println(
-                    (match != null ? "Matched: " : "Failed to match: ") + memoKey.toStringWithRuleNames());
+            System.out
+                    .println((match != null ? "Matched: " : "Failed to match: ") + memoKey.toStringWithRuleNames());
         }
     }
 

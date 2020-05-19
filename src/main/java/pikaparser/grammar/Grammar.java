@@ -128,15 +128,6 @@ public class Grammar {
         // Uses the concurrent PriorityBlockingQueue, since memo table initialization is parallelized.
         var priorityQueue = new PriorityBlockingQueue<MemoKey>();
 
-        // Always match Start at the first position, if any clause depends upon it
-        for (var clause : allClauses) {
-            if (clause instanceof Start) {
-                priorityQueue.add(new MemoKey(clause, 0));
-                // Because clauses are interned, can stop after one instance of Start clause is found
-                break;
-            }
-        }
-
         // Find positions that all terminals match, and create the initial active set from parents of terminals,
         // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
         // to be added to the memo table, because the match status of a given terminal at a given position will
