@@ -1,3 +1,32 @@
+//
+// This file is part of the pika parser reference implementation:
+//
+//     https://github.com/lukehutch/pikaparser
+//
+// The pika parsing algorithm is described in the following paper: 
+//
+//     Pika parsing: parsing in reverse solves the left recursion and error recovery problems
+//     Luke A. D. Hutchison, May 2020
+//     https://arxiv.org/abs/2005.06444
+//
+// This software is provided under the MIT license:
+//
+// Copyright 2020 Luke A. D. Hutchison
+//  
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions
+// of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+// TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+// CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
 package pikaparser.memotable;
 
 import java.util.AbstractMap.SimpleEntry;
@@ -11,8 +40,6 @@ import pikaparser.clause.Clause;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.nonterminal.OneOrMore;
 import pikaparser.clause.nonterminal.Seq;
-import pikaparser.grammar.MetaGrammar;
-import pikaparser.parser.ASTNode;
 
 /** A complete match of a {@link Clause} at a given start position. */
 public class Match {
@@ -34,11 +61,27 @@ public class Match {
     /** There are no subclause matches for terminals. */
     public static final Match[] NO_SUBCLAUSE_MATCHES = new Match[0];
 
+    /** Construct a new match. */
     public Match(MemoKey memoKey, int firstMatchingSubClauseIdx, int len, Match[] subClauseMatches) {
         this.memoKey = memoKey;
         this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
         this.len = len;
         this.subClauseMatches = subClauseMatches;
+    }
+
+    /** Construct a new match of a nonterminal clause other than {@link First}. */
+    public Match(MemoKey memoKey, int len, Match[] subClauseMatches) {
+        this(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, subClauseMatches);
+    }
+
+    /** Construct a new terminal match. */
+    public Match(MemoKey memoKey, int len) {
+        this(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, /* subClauseMatches = */ NO_SUBCLAUSE_MATCHES);
+    }
+
+    /** Construct a new zero-length match without subclauses. */
+    public Match(MemoKey memoKey) {
+        this(memoKey, /* len = */ 0);
     }
 
     /**
@@ -47,8 +90,7 @@ public class Match {
      */
     public List<Entry<String, Match>> getSubClauseMatches() {
         if (subClauseMatches.length == 0) {
-            // For terminals, or empty matches triggered by clauses that can match zero characters --
-            // see MemoTable.lookUpBestMatch
+            // This is a terminals, or an empty placeholder match returned by MemoTable.lookUpBestMatch
             return Collections.emptyList();
         }
         if (memoKey.clause instanceof OneOrMore) {
@@ -64,7 +106,7 @@ public class Match {
             }
             return subClauseMatchesToUse;
         } else if (memoKey.clause instanceof First) {
-            // For First, pair the appropriate AST node label with the one and only subclause match
+            // For First, pair the match with the AST node label from the subclause of idx firstMatchingSubclauseIdx
             return Arrays.asList(new SimpleEntry<>(
                     memoKey.clause.labeledSubClauses[firstMatchingSubClauseIdx].astNodeLabel, subClauseMatches[0]));
         } else {
@@ -80,13 +122,6 @@ public class Match {
     }
 
     /**
-     * Get subclause matches, without flattening the right-recursive structure of {@link OneOrMore} nodes.
-     */
-    public Match[] getSubClauseMatchesRaw() {
-        return subClauseMatches;
-    }
-
-    /**
      * Compare this {@link Match} to another {@link Match} of the same {@link Clause} type and start position.
      * 
      * @return true if this {@link Match} is a better match than the other {@link Match}.
@@ -95,7 +130,6 @@ public class Match {
         if (other == this) {
             return false;
         }
-
         // An earlier subclause match in a First clause is better than a later subclause match
         // A longer match (i.e. a match that spans more characters in the input) is better than a shorter match
         return (memoKey.clause instanceof First // 
@@ -103,89 +137,20 @@ public class Match {
                 || this.len > other.len;
     }
 
-    public String getText(String input) {
-        return input.substring(memoKey.startPos, memoKey.startPos + len);
-    }
-
-    private void toAST(ASTNode parent, String input) {
-        // Recurse to descendants
-        var subClauseMatchesToUse = getSubClauseMatches();
-        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
-            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
-            var subClauseASTNodeLabel = subClauseMatchEnt.getKey();
-            var subClauseMatch = subClauseMatchEnt.getValue();
-            ASTNode parentOfSubclause = parent;
-            if (subClauseASTNodeLabel != null) {
-                // Create an AST node for any labeled sub-clauses
-                var newASTNode = new ASTNode(subClauseASTNodeLabel, subClauseMatch.memoKey.clause,
-                        subClauseMatch.memoKey.startPos, subClauseMatch.len, input);
-                parent.addChild(newASTNode);
-                parentOfSubclause = newASTNode;
-            }
-            subClauseMatch.toAST(parentOfSubclause, input);
-        }
-    }
-
-    public ASTNode toAST(String rootNodeLabel, String input) {
-        var root = new ASTNode(rootNodeLabel, memoKey.clause, memoKey.startPos, len, input);
-        toAST(root, input);
-        return root;
-    }
-
-    public void renderTreeView(String input, String indentStr, String astNodeLabel, boolean isLastChild,
-            StringBuilder buf) {
-        int inpLen = 80;
-        String inp = input.substring(memoKey.startPos,
-                Math.min(input.length(), memoKey.startPos + Math.min(len, inpLen)));
-        if (inp.length() == inpLen) {
-            inp += "...";
-        }
-        inp = inp.replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r");
-
-        // Uncomment for double-spaced rows
-        // buf.append(indentStr + "│\n");
-
-        var ruleNames = memoKey.clause.getRuleNames();
-        var toStr = memoKey.clause.toString();
-        var astNodeLabelNeedsParens = MetaGrammar.needToAddParensAroundASTNodeLabel(memoKey.clause);
-        buf.append(indentStr + (isLastChild ? "└─" : "├─") //
-                + (ruleNames.isEmpty() ? "" : ruleNames + " <- ") //
-                + (astNodeLabel == null ? "" : (astNodeLabel + ":" + (astNodeLabelNeedsParens ? "(" : ""))) //
-                + toStr //
-                + (astNodeLabel == null || !astNodeLabelNeedsParens ? "" : ")") //
-                + " : " + memoKey.startPos + "+" + len //
-                + " : \"" + inp + "\"\n");
-
-        // Recurse to descendants
-        var subClauseMatchesToUse = getSubClauseMatches();
-        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
-            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
-            var subClauseASTNodeLabel = subClauseMatchEnt.getKey();
-            var subClauseMatch = subClauseMatchEnt.getValue();
-            subClauseMatch.renderTreeView(input, indentStr + (isLastChild ? "  " : "│ "), subClauseASTNodeLabel,
-                    subClauseMatchIdx == subClauseMatchesToUse.size() - 1, buf);
-        }
-    }
-
-    public void printTreeView(String input) {
-        var buf = new StringBuilder();
-        renderTreeView(input, "", null, true, buf);
-        System.out.println(buf.toString());
-    }
-
     public String toStringWithRuleNames() {
         StringBuilder buf = new StringBuilder();
-        buf.append(memoKey.toStringWithRuleNames() + "+" + len + " => [ ");
-        var subClauseMatchesToUse = getSubClauseMatches();
-        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
-            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
-            var subClauseMatch = subClauseMatchEnt.getValue();
-            if (subClauseMatchIdx > 0) {
-                buf.append(" ; ");
-            }
-            buf.append(subClauseMatch.toStringWithRuleNames());
-        }
-        buf.append(" ]");
+        buf.append(memoKey.toStringWithRuleNames() + "+" + len);
+        //        buf.append(memoKey.toStringWithRuleNames() + "+" + len + " => [ ");
+        //        var subClauseMatchesToUse = getSubClauseMatches();
+        //        for (int subClauseMatchIdx = 0; subClauseMatchIdx < subClauseMatchesToUse.size(); subClauseMatchIdx++) {
+        //            var subClauseMatchEnt = subClauseMatchesToUse.get(subClauseMatchIdx);
+        //            var subClauseMatch = subClauseMatchEnt.getValue();
+        //            if (subClauseMatchIdx > 0) {
+        //                buf.append(" ; ");
+        //            }
+        //            buf.append(subClauseMatch.toStringWithRuleNames());
+        //        }
+        //        buf.append(" ]");
         return buf.toString();
     }
 

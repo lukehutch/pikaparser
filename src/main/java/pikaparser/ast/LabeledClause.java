@@ -27,40 +27,46 @@
 // CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 //
-package pikaparser.clause.aux;
+package pikaparser.ast;
 
 import pikaparser.clause.Clause;
-import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoKey;
-import pikaparser.memotable.MemoTable;
+import pikaparser.grammar.MetaGrammar;
 
-/**
- * Placeholder clause used to add an AST node label to the provided subclause. {@link ASTNodeLabel} clauses are
- * removed from the grammar before parsing, and the node label and subclause are moved into a {@link LabeledClause}
- * object for each subclause of a clause.
- */
-public class ASTNodeLabel extends Clause {
-    public final String astNodeLabel;
+/** A container for grouping a subclause together with its AST node label. */
+public class LabeledClause {
+    public Clause clause;
+    public String astNodeLabel;
 
-    public ASTNodeLabel(String astNodeLabel, Clause clause) {
-        super(clause);
+    public LabeledClause(Clause clause, String astNodeLabel) {
+        this.clause = clause;
         this.astNodeLabel = astNodeLabel;
     }
 
-    @Override
-    public void determineWhetherCanMatchZeroChars() {
-    }
-
-    @Override
-    public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
-        throw new IllegalArgumentException(getClass().getSimpleName() + " node should not be in final grammar");
+    /** Call {@link #toString()}, prepending any AST node label. */
+    public String toStringWithASTNodeLabel(Clause parentClause) {
+        var addParens = parentClause != null && MetaGrammar.needToAddParensAroundSubClause(parentClause, clause);
+        if (astNodeLabel == null && !addParens) {
+            // Fast path
+            return clause.toString();
+        }
+        var buf = new StringBuilder();
+        if (astNodeLabel != null) {
+            buf.append(astNodeLabel);
+            buf.append(':');
+            addParens |= MetaGrammar.needToAddParensAroundASTNodeLabel(clause);
+        }
+        if (addParens) {
+            buf.append('(');
+        }
+        buf.append(clause.toString());
+        if (addParens) {
+            buf.append(')');
+        }
+        return buf.toString();
     }
 
     @Override
     public String toString() {
-        if (toStringCached == null) {
-            toStringCached = astNodeLabel + ":(" + labeledSubClauses[0] + ")";
-        }
-        return toStringCached;
+        return toStringWithASTNodeLabel(null);
     }
 }

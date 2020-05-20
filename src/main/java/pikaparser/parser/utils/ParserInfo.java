@@ -1,7 +1,35 @@
-package pikaparser.parser;
+//
+// This file is part of the pika parser reference implementation:
+//
+//     https://github.com/lukehutch/pikaparser
+//
+// The pika parsing algorithm is described in the following paper: 
+//
+//     Pika parsing: parsing in reverse solves the left recursion and error recovery problems
+//     Luke A. D. Hutchison, May 2020
+//     https://arxiv.org/abs/2005.06444
+//
+// This software is provided under the MIT license:
+//
+// Copyright 2020 Luke A. D. Hutchison
+//  
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions
+// of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+// TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+// CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
+package pikaparser.parser.utils;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -9,42 +37,16 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
+import pikaparser.ast.ASTNode;
 import pikaparser.clause.Clause;
 import pikaparser.clause.terminal.Terminal;
 import pikaparser.grammar.Grammar;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoTable;
 
+/** Utility methods for printing information about the result of a parse. */
 public class ParserInfo {
-
-    private static final char NON_ASCII_CHAR = '■';
-
-    private static void getConsumedChars(Match match, BitSet consumedChars) {
-        for (int i = match.memoKey.startPos, ii = match.memoKey.startPos + match.len; i < ii; i++) {
-            consumedChars.set(i);
-        }
-        Match[] subClauseMatches = match.getSubClauseMatchesRaw();
-        if (subClauseMatches != null) {
-            for (int i = 0; i < subClauseMatches.length; i++) {
-                Match subClauseMatch = subClauseMatches[i];
-                getConsumedChars(subClauseMatch, consumedChars);
-            }
-        }
-    }
-
-    private static void replaceNonASCII(String str, StringBuilder buf) {
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            buf.append(c < 32 || c > 126 ? NON_ASCII_CHAR : c);
-        }
-    }
-
-    private static String replaceNonASCII(String str) {
-        StringBuilder buf = new StringBuilder();
-        replaceNonASCII(str, buf);
-        return buf.toString();
-    }
-
+    /** Print all the clauses in a grammar. */
     public static void printClauses(Grammar grammar) {
         for (int i = grammar.allClauses.size() - 1; i >= 0; --i) {
             var clause = grammar.allClauses.get(i);
@@ -53,32 +55,9 @@ public class ParserInfo {
         }
     }
 
-    private static int findCycleDepth(Match match,
-            Map<Integer, Map<Integer, Map<Integer, Match>>> cycleDepthToMatches) {
-        var cycleDepth = 0;
-        for (var subClauseMatchEnt : match.getSubClauseMatches()) {
-            var subClauseMatch = subClauseMatchEnt.getValue();
-            var subClauseIsInDifferentCycle = //
-                    match.memoKey.clause.clauseIdx <= subClauseMatch.memoKey.clause.clauseIdx;
-            var subClauseMatchDepth = findCycleDepth(subClauseMatch, cycleDepthToMatches);
-            cycleDepth = Math.max(cycleDepth,
-                    subClauseIsInDifferentCycle ? subClauseMatchDepth + 1 : subClauseMatchDepth);
-        }
-        var matchesForDepth = cycleDepthToMatches.get(cycleDepth);
-        if (matchesForDepth == null) {
-            matchesForDepth = new TreeMap<>(Collections.reverseOrder());
-            cycleDepthToMatches.put(cycleDepth, matchesForDepth);
-        }
-        var matchesForClauseIdx = matchesForDepth.get(match.memoKey.clause.clauseIdx);
-        if (matchesForClauseIdx == null) {
-            matchesForClauseIdx = new TreeMap<>();
-            matchesForDepth.put(match.memoKey.clause.clauseIdx, matchesForClauseIdx);
-        }
-        matchesForClauseIdx.put(match.memoKey.startPos, match);
-        return cycleDepth;
-    }
+    // -------------------------------------------------------------------------------------------------------------
 
-
+    /** Print the memo table. */
     public static void printMemoTable(List<Clause> allClauses, MemoTable memoTable, String input) {
         StringBuilder[] buf = new StringBuilder[allClauses.size()];
         int marginWidth = 0;
@@ -131,12 +110,43 @@ public class ParserInfo {
         for (int i = 0; i < marginWidth; i++) {
             System.out.print(' ');
         }
-        System.out.println(replaceNonASCII(input));
+        System.out.println(StringUtils.replaceNonASCII(input));
     }
 
-    
-    public static void printMatchTree(String toplevelRuleName, Grammar grammar, MemoTable memoTable, String input,
-            BitSet consumedChars) {
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Find the cycle depth of a given match (the maximum number of grammar cycles in any path between the match and
+     * any descendant terminal match).
+     */
+    private static int findCycleDepth(Match match,
+            Map<Integer, Map<Integer, Map<Integer, Match>>> cycleDepthToMatches) {
+        var cycleDepth = 0;
+        for (var subClauseMatchEnt : match.getSubClauseMatches()) {
+            var subClauseMatch = subClauseMatchEnt.getValue();
+            var subClauseIsInDifferentCycle = //
+                    match.memoKey.clause.clauseIdx <= subClauseMatch.memoKey.clause.clauseIdx;
+            var subClauseMatchDepth = findCycleDepth(subClauseMatch, cycleDepthToMatches);
+            cycleDepth = Math.max(cycleDepth,
+                    subClauseIsInDifferentCycle ? subClauseMatchDepth + 1 : subClauseMatchDepth);
+        }
+        var matchesForDepth = cycleDepthToMatches.get(cycleDepth);
+        if (matchesForDepth == null) {
+            matchesForDepth = new TreeMap<>(Collections.reverseOrder());
+            cycleDepthToMatches.put(cycleDepth, matchesForDepth);
+        }
+        var matchesForClauseIdx = matchesForDepth.get(match.memoKey.clause.clauseIdx);
+        if (matchesForClauseIdx == null) {
+            matchesForClauseIdx = new TreeMap<>();
+            matchesForDepth.put(match.memoKey.clause.clauseIdx, matchesForClauseIdx);
+        }
+        matchesForClauseIdx.put(match.memoKey.startPos, match);
+        return cycleDepth;
+    }
+
+    /** Print the parse tree in memo table form. */
+    public static void printParseTreeInMemoTableForm(String toplevelRuleName, Grammar grammar, MemoTable memoTable,
+            String input) {
         if (grammar.allClauses.size() == 0) {
             throw new IllegalArgumentException("Grammar is empty");
         }
@@ -270,24 +280,15 @@ public class ParserInfo {
             System.out.print(' ');
         }
         System.out.print(' ');
-        var str = replaceNonASCII(input);
+        var str = StringUtils.replaceNonASCII(input);
         for (int i = 0; i < input.length(); i++) {
             System.out.print(str.charAt(i));
             System.out.print(' ');
         }
         System.out.println();
-
-        // Show consumed chars
-        if (consumedChars != null) {
-            for (int i = 0; i < rowLabelMaxWidth; i++) {
-                System.out.print(' ');
-            }
-            for (int i = 0; i < input.length(); i++) {
-                System.out.print(consumedChars.get(i) ? "^" : " ");
-            }
-            System.out.println();
-        }
     }
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** Print syntax errors obtained from {@link Grammar#getSyntaxErrors(MemoTable, String, String...)}. */
     public static void printSyntaxErrors(NavigableMap<Integer, Entry<Integer, String>> syntaxErrors) {
@@ -298,28 +299,29 @@ public class ParserInfo {
                 var endPos = ent.getValue().getKey();
                 var syntaxErrStr = ent.getValue().getValue();
                 // TODO: show line numbers
-                System.out.println(startPos + "+" + (endPos - startPos) + " : " + replaceNonASCII(syntaxErrStr));
+                System.out.println(
+                        startPos + "+" + (endPos - startPos) + " : " + StringUtils.replaceNonASCII(syntaxErrStr));
             }
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Summarize a parsing result. */
     public static void printParseResult(String topLevelRuleName, Grammar grammar, MemoTable memoTable, String input,
             String[] syntaxCoverageRuleNames, boolean showAllMatches) {
-        // Print parse tree, and find which characters were consumed and which weren't
-        BitSet consumedChars = new BitSet(input.length() + 1);
-
         System.out.println();
         System.out.println("Clauses:");
         printClauses(grammar);
-        
+
         System.out.println();
         System.out.println("Memo Table:");
-        printMemoTable(grammar.allClauses, memoTable, input);        
+        printMemoTable(grammar.allClauses, memoTable, input);
 
         // Print memo table
         System.out.println();
         System.out.println("Match tree for rule " + topLevelRuleName + ":");
-        printMatchTree(topLevelRuleName, grammar, memoTable, input, consumedChars);
+        printParseTreeInMemoTableForm(topLevelRuleName, grammar, memoTable, input);
 
         // Print all matches for each clause
         for (Clause clause : grammar.allClauses) {
@@ -333,7 +335,7 @@ public class ParserInfo {
                     for (var rule : clause.rules) {
                         if (rule.labeledClause.astNodeLabel != null) {
                             if (!astNodeLabel.isEmpty()) {
-                                astNodeLabel += ",";
+                                astNodeLabel += ":";
                             }
                             astNodeLabel += rule.labeledClause.astNodeLabel;
                         }
@@ -347,8 +349,8 @@ public class ParserInfo {
                     if (!overlapsPrevMatch || showAllMatches) {
                         var indent = overlapsPrevMatch ? "    " : "";
                         var buf = new StringBuilder();
-                        match.renderTreeView(input, indent, astNodeLabel.isEmpty() ? null : astNodeLabel, true,
-                                buf);
+                        TreeUtils.renderTreeView(match, astNodeLabel.isEmpty() ? null : astNodeLabel, input, indent,
+                                true, buf);
                         System.out.println(buf.toString());
                     }
                     int newEndPos = match.memoKey.startPos + match.len;
@@ -364,21 +366,15 @@ public class ParserInfo {
             var topLevelRuleClause = topLevelRule.labeledClause.clause;
             var topLevelMatches = memoTable.getNonOverlappingMatches(topLevelRuleClause);
             if (!topLevelMatches.isEmpty()) {
-                for (int i = 0; i < topLevelMatches.size(); i++) {
-                    var topLevelMatch = topLevelMatches.get(i);
-                    getConsumedChars(topLevelMatch, consumedChars);
-                }
-            }
-            if (!topLevelMatches.isEmpty()) {
                 System.out.println("\n====================================\n\nFinal AST for rule \""
                         + topLevelRuleName + "\":");
-                var topLevelASTNodeName = topLevelRule.labeledClause.astNodeLabel;
-                if (topLevelASTNodeName == null) {
-                    topLevelASTNodeName = "<root>";
+                var topLevelRuleASTNodeLabel = topLevelRule.labeledClause.astNodeLabel;
+                if (topLevelRuleASTNodeLabel == null) {
+                    topLevelRuleASTNodeLabel = "<root>";
                 }
                 for (int i = 0; i < topLevelMatches.size(); i++) {
                     var topLevelMatch = topLevelMatches.get(i);
-                    var ast = topLevelMatch.toAST(topLevelASTNodeName, input);
+                    var ast = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatch, input);
                     if (ast != null) {
                         System.out.println();
                         System.out.println(ast.toString());

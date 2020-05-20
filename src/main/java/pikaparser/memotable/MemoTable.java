@@ -1,16 +1,46 @@
+//
+// This file is part of the pika parser reference implementation:
+//
+//     https://github.com/lukehutch/pikaparser
+//
+// The pika parsing algorithm is described in the following paper: 
+//
+//     Pika parsing: parsing in reverse solves the left recursion and error recovery problems
+//     Luke A. D. Hutchison, May 2020
+//     https://arxiv.org/abs/2005.06444
+//
+// This software is provided under the MIT license:
+//
+// Copyright 2020 Luke A. D. Hutchison
+//  
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions
+// of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+// TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+// CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
 package pikaparser.memotable;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import pikaparser.clause.Clause;
 import pikaparser.grammar.Grammar;
@@ -19,10 +49,12 @@ import pikaparser.parser.utils.GrammarUtils;
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
     /**
-     * A map from clause to startPos to MemoEntry. (This uses concurrent data structures so that terminals can be
-     * memoized in parallel.)
+     * A map from clause to startPos to a {@link Match} for the memo entry. (Use concurrent data structures so that
+     * terminals can be memoized in parallel during initialization.)
      */
     private Map<Clause, NavigableMap<Integer, Match>> memoTable = new ConcurrentHashMap<>();
+
+    // -------------------------------------------------------------------------------------------------------------
 
     /** The number of {@link Match} instances created. */
     public final AtomicInteger numMatchObjectsCreated = new AtomicInteger();
@@ -32,9 +64,12 @@ public class MemoTable {
      */
     public final AtomicInteger numMatchObjectsMemoized = new AtomicInteger();
 
+    // -------------------------------------------------------------------------------------------------------------
+
     public MemoTable(Grammar grammar) {
         for (var clause : grammar.allClauses) {
-            memoTable.put(clause, new TreeMap<>());
+            // Use a concurrent data structure so that terminals can be memoized in parallel during initialization
+            memoTable.put(clause, new ConcurrentSkipListMap<>());
         }
     }
 
@@ -42,19 +77,19 @@ public class MemoTable {
 
     /** Look up the current best match for a given {@link MemoKey} in the memo table. */
     public Match lookUpBestMatch(MemoKey memoKey) {
-        // Create a new memo entry for non-terminals
-        // (Have to add memo entry if terminal does match, since a new match needs to trigger parent clauses.)
-        // Get MemoEntry for the MemoKey
+        // Find current best match in memo table (null if there is no current best match)
         var bestMatch = memoTable.get(memoKey.clause).get(memoKey.startPos);
         if (bestMatch != null) {
-            // If there is already a memoized best match in the MemoEntry, return it
+            // If there is a current best match, return it
             return bestMatch;
 
         } else if (memoKey.clause.canMatchZeroChars) {
-            // Return a new zero-length match (N.B. this match will not have any of the expected zero-length
-            // subclause matches that would be obtained by top-down parsing, so be careful when analyzing the AST)
-            return new Match(memoKey, /* firstMatchingSubClauseIdx = */ 0, /* len = */ 0,
-                    Match.NO_SUBCLAUSE_MATCHES);
+            // If there is no match in the memo table for this clause, but this clause can match zero characters,
+            // then we need to return a new zero-length match to the parent clause. (This is part of the strategy
+            // for minimizing the number of zero-length matches that are memoized.)
+            // (N.B. this match will not have any subclause matches, which may be unexpected, so conversion of
+            // parse tree to AST should be robust to this.)
+            return new Match(memoKey);
         }
         // No match was found in the memo table
         return null;
@@ -67,23 +102,21 @@ public class MemoTable {
     public void addMatch(MemoKey memoKey, Match newMatch, PriorityBlockingQueue<MemoKey> priorityQueue) {
         var matchUpdated = false;
         if (newMatch != null) {
+            // Track memoization
             numMatchObjectsCreated.incrementAndGet();
 
             // Get the memo entry for memoKey if already present; if not, create a new entry
             var clauseMatches = memoTable.get(memoKey.clause);
             var oldMatch = clauseMatches.get(memoKey.startPos);
 
+            // If there is no old match, or the new match is better than the old match
             if ((oldMatch == null || newMatch.isBetterThan(oldMatch))) {
-                // Set the new best match (this should only be done once for each memo entry in each
-                // parsing iteration, since activeSet is a set, and addNewBestMatch is called at most 
-                // once per activeSet element).
+                // Store the new match in the memo entry
                 clauseMatches.put(memoKey.startPos, newMatch);
                 matchUpdated = true;
 
+                // Track memoization
                 numMatchObjectsMemoized.incrementAndGet();
-
-                // Since there was a new best match at this memo entry, any parent clauses that have this clause
-                // in the first position (that must match one or more characters) needs to be added to the active set
                 if (Grammar.DEBUG) {
                     System.out.println("Setting new best match: " + newMatch.toStringWithRuleNames());
                 }
@@ -91,7 +124,8 @@ public class MemoTable {
         }
         for (var seedParentClause : memoKey.clause.seedParentClauses) {
             // If there was a valid match, or if there was no match but the parent clause can match
-            // zero characters regardless, schedule the parent clause for matching
+            // zero characters, schedule the parent clause for matching. (This is part of the strategy
+            // for minimizing the number of zero-length matches that are memoized.)
             if (matchUpdated || seedParentClause.canMatchZeroChars) {
                 var parentMemoKey = new MemoKey(seedParentClause, memoKey.startPos);
                 priorityQueue.add(parentMemoKey);
@@ -101,7 +135,6 @@ public class MemoTable {
                 }
             }
         }
-
         if (Grammar.DEBUG) {
             System.out.println(
                     (newMatch != null ? "Matched: " : "Failed to match: ") + memoKey.toStringWithRuleNames());
@@ -115,16 +148,18 @@ public class MemoTable {
         return memoTable.get(clause);
     }
 
+    /** Get the {@link Match} entries for all matches of this clause. */
+    public List<Match> getAllMatches(Clause clause) {
+        return memoTable.get(clause).entrySet().stream().map(Entry::getValue).collect(Collectors.toList());
+    }
+
     /**
      * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching
      * from the beginning of the string, then looking for the next match after the end of the current match.
      */
     public List<Match> getNonOverlappingMatches(Clause clause) {
-        var skipList = memoTable.get(clause);
-        if (skipList == null) {
-            return Collections.emptyList();
-        }
-        var firstEntry = skipList.firstEntry();
+        var clauseMatches = memoTable.get(clause);
+        var firstEntry = clauseMatches.firstEntry();
         var nonoverlappingMatches = new ArrayList<Match>();
         if (firstEntry != null) {
             // If there was at least one memo entry
@@ -137,35 +172,10 @@ public class MemoTable {
                 // Need to consume at least one character per match to avoid getting stuck in an infinite loop,
                 // hence the Math.max(1, X) term. Have to subtract 1, because higherEntry() starts searching
                 // at a position one greater than its parameter value.
-                ent = skipList.higherEntry(startPos + Math.max(1, match.len) - 1);
+                ent = clauseMatches.higherEntry(startPos + Math.max(1, match.len) - 1);
             }
         }
         return nonoverlappingMatches;
-    }
-
-    /**
-     * Get the {@link Match} entries for all nonoverlapping matches of this clause, obtained by greedily matching
-     * from the beginning of the string, then looking for the next match after the end of the current match.
-     */
-    public List<Match> getAllMatches(Clause clause) {
-        var skipList = memoTable.get(clause);
-        if (skipList == null) {
-            return Collections.emptyList();
-        }
-        var firstEntry = skipList.firstEntry();
-        var allMatches = new ArrayList<Match>();
-        if (firstEntry != null) {
-            // If there was at least one memo entry
-            for (var ent = firstEntry; ent != null;) {
-                var startPos = ent.getKey();
-                var match = ent.getValue();
-                // Store match
-                allMatches.add(match);
-                // Move to next MemoEntry
-                ent = skipList.higherEntry(startPos);
-            }
-        }
-        return allMatches;
     }
 
     /**
@@ -192,6 +202,7 @@ public class MemoTable {
             var currStartPos = ent.getKey();
             var currEndPos = ent.getValue().getKey();
             if (currStartPos > prevEndPos) {
+                // At least one character was not matched by one of the listed rules
                 syntaxErrorRanges.put(prevEndPos,
                         new SimpleEntry<>(currStartPos, input.substring(prevEndPos, currStartPos)));
             }
@@ -201,7 +212,8 @@ public class MemoTable {
             var lastEnt = parsedRanges.lastEntry();
             var lastEntEndPos = lastEnt.getValue().getKey();
             if (lastEntEndPos < input.length()) {
-                // Add final syntax error range, if there is one
+                // There was at least one character before the end of the string that was not matched
+                // by one of the listed rules
                 syntaxErrorRanges.put(lastEntEndPos,
                         new SimpleEntry<>(input.length(), input.substring(lastEntEndPos, input.length())));
             }

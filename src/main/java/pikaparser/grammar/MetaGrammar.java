@@ -1,13 +1,43 @@
+//
+// This file is part of the pika parser reference implementation:
+//
+//     https://github.com/lukehutch/pikaparser
+//
+// The pika parsing algorithm is described in the following paper: 
+//
+//     Pika parsing: parsing in reverse solves the left recursion and error recovery problems
+//     Luke A. D. Hutchison, May 2020
+//     https://arxiv.org/abs/2005.06444
+//
+// This software is provided under the MIT license:
+//
+// Copyright 2020 Luke A. D. Hutchison
+//  
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions
+// of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+// TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+// CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
 package pikaparser.grammar;
 
 import static java.util.Map.entry;
-import static pikaparser.clause.util.ClauseFactory.*;
+import static pikaparser.parser.utils.ClauseFactory.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import pikaparser.ast.ASTNode;
 import pikaparser.clause.Clause;
 import pikaparser.clause.aux.ASTNodeLabel;
 import pikaparser.clause.aux.RuleRef;
@@ -18,10 +48,12 @@ import pikaparser.clause.nonterminal.OneOrMore;
 import pikaparser.clause.nonterminal.Seq;
 import pikaparser.clause.terminal.Terminal;
 import pikaparser.grammar.Rule.Associativity;
-import pikaparser.parser.ASTNode;
-import pikaparser.parser.ParserInfo;
+import pikaparser.parser.utils.ParserInfo;
 import pikaparser.parser.utils.StringUtils;
 
+/**
+ * A "meta-grammar" that produces a runtime parser generator, allowing a grammar to be defined using ASCII notation.
+ */
 public class MetaGrammar {
 
     // Rule names:
@@ -116,7 +148,7 @@ public class MetaGrammar {
             // OneOrMore / ZeroOrMore
             rule(CLAUSE, 6, /* associativity = */ null, //
                     first( //
-                            seq(ast(ONE_OR_MORE_AST, ruleRef(CLAUSE)), ruleRef(WSC), c("+")),
+                            seq(ast(ONE_OR_MORE_AST, ruleRef(CLAUSE)), ruleRef(WSC), c('+')),
                             seq(ast(ZERO_OR_MORE_AST, ruleRef(CLAUSE)), ruleRef(WSC), c('*')))), //
 
             // FollowedBy / NotFollowedBy
@@ -148,23 +180,24 @@ public class MetaGrammar {
 
             // Whitespace or comment
             rule(WSC, //
-                    zeroOrMore(first(c(" \n\r\t"), ruleRef(COMMENT)))),
+                    zeroOrMore(first(c(' ', '\n', '\r', '\t'), ruleRef(COMMENT)))),
 
             // Comment
             rule(COMMENT, //
-                    seq(c('#'), zeroOrMore(c('\n', /* invert = */ true)))),
+                    seq(c('#'), zeroOrMore(c('\n').invert()))),
 
             // Identifier
             rule(IDENT, //
-                    ast(IDENT_AST, seq(ruleRef(NAME_CHAR), zeroOrMore(first(ruleRef(NAME_CHAR), c('0', '9')))))), //
+                    ast(IDENT_AST,
+                            seq(ruleRef(NAME_CHAR), zeroOrMore(first(ruleRef(NAME_CHAR), cRange('0', '9')))))), //
 
             // Number
             rule(NUM, //
-                    oneOrMore(c('0', '9'))), //
+                    oneOrMore(cRange('0', '9'))), //
 
             // Name character
             rule(NAME_CHAR, //
-                    c(c('a', 'z'), c('A', 'Z'), c("_-"))),
+                    c(cRange('a', 'z'), cRange('A', 'Z'), c('_', '-'))),
 
             // Precedence and optional associativity modifiers for rule name
             rule(PREC, //
@@ -191,7 +224,7 @@ public class MetaGrammar {
             rule(SINGLE_QUOTED_CHAR, //
                     first( //
                             ruleRef(ESCAPED_CTRL_CHAR), //
-                            c("\'\\").invert())), //
+                            c('\'', '"').invert())), // TODO: replace invert() with NotFollowedBy
 
             // Char range
             rule(CHAR_RANGE, //
@@ -214,11 +247,11 @@ public class MetaGrammar {
             rule(STR_QUOTED_CHAR, //
                     first( //
                             ruleRef(ESCAPED_CTRL_CHAR), //
-                            c("\"\\").invert() //
+                            c('"', '\\').invert() //
                     )), //
 
             // Hex digit
-            rule(HEX, c(c('0', '9'), c('a', 'f'), c('A', 'F'))), //
+            rule(HEX, c(cRange('0', '9'), cRange('a', 'f'), cRange('A', 'F'))), //
 
             // Escaped control character
             rule(ESCAPED_CTRL_CHAR, //
@@ -299,10 +332,10 @@ public class MetaGrammar {
         Clause clause;
         switch (astNode.label) {
         case SEQ_AST:
-            clause = seq(parseASTNodes(astNode.children));
+            clause = seq(parseASTNodes(astNode.children).toArray(new Clause[0]));
             break;
         case FIRST_AST:
-            clause = first(parseASTNodes(astNode.children));
+            clause = first(parseASTNodes(astNode.children).toArray(new Clause[0]));
             break;
         case ONE_OR_MORE_AST:
             clause = oneOrMore(expectOne(parseASTNodes(astNode.children), astNode));
@@ -387,19 +420,26 @@ public class MetaGrammar {
             ParserInfo.printSyntaxErrors(syntaxErrors);
         }
 
+        var topLevelRule = grammar.getRule(GRAMMAR);
+        var topLevelRuleASTNodeLabel = topLevelRule.labeledClause.astNodeLabel;
+        if (topLevelRuleASTNodeLabel == null) {
+            topLevelRuleASTNodeLabel = "<root>";
+        }
         var topLevelMatches = grammar.getNonOverlappingMatches(GRAMMAR, memoTable);
         if (topLevelMatches.isEmpty()) {
             throw new IllegalArgumentException("Toplevel rule \"" + GRAMMAR + "\" did not match");
         } else if (topLevelMatches.size() > 1) {
             System.out.println("\nMultiple toplevel matches:");
             for (var topLevelMatch : topLevelMatches) {
-                var topLevelASTNode = topLevelMatch.toAST("<root>", input);
+                var topLevelASTNode = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatch, input);
                 System.out.println(topLevelASTNode);
             }
             throw new IllegalArgumentException("Stopping");
         }
 
-        var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", input);
+        var topLevelASTNode = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatches.get(0), input);
+
+        System.out.println(topLevelASTNode);
 
         List<Rule> rules = new ArrayList<>();
         for (ASTNode astNode : topLevelASTNode.children) {

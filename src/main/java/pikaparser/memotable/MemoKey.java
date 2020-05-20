@@ -1,8 +1,37 @@
+//
+// This file is part of the pika parser reference implementation:
+//
+//     https://github.com/lukehutch/pikaparser
+//
+// The pika parsing algorithm is described in the following paper: 
+//
+//     Pika parsing: parsing in reverse solves the left recursion and error recovery problems
+//     Luke A. D. Hutchison, May 2020
+//     https://arxiv.org/abs/2005.06444
+//
+// This software is provided under the MIT license:
+//
+// Copyright 2020 Luke A. D. Hutchison
+//  
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions
+// of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+// TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+// CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//
 package pikaparser.memotable;
 
 import pikaparser.clause.Clause;
 
-/** A memo entry for a specific {@link Clause} at a specific start position. */
+/** A memo table key, consisting of a {@link Clause} and a match start position. */
 public class MemoKey implements Comparable<MemoKey> {
     /** The {@link Clause}. */
     public final Clause clause;
@@ -15,15 +44,18 @@ public class MemoKey implements Comparable<MemoKey> {
         this.startPos = startPos;
     }
 
-    /** Sort order for {@link MemoKey} instances. */
+    /**
+     * Define the sort order for {@link MemoKey} instances (this specifies the order in which memo keys are removed
+     * from the priority queue).
+     */
     @Override
     public int compareTo(MemoKey other) {
-        // Sort MemoKeys in reverse order of startPos 
+        // Parse right to left 
         int diff = -(this.startPos - other.startPos);
         if (diff != 0) {
             return diff;
         }
-        // Break ties using clause topological sort index, sorting from bottom-up 
+        // Break ties using clause topological sort index, i.e. parse bottom-up 
         return this.clause.clauseIdx - other.clause.clauseIdx;
     }
 
