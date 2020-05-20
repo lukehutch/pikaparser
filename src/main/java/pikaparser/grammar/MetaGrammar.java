@@ -439,7 +439,7 @@ public class MetaGrammar {
 
         var topLevelASTNode = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatches.get(0), input);
 
-        System.out.println(topLevelASTNode);
+        // System.out.println(topLevelASTNode);
 
         List<Rule> rules = new ArrayList<>();
         for (ASTNode astNode : topLevelASTNode.children) {
