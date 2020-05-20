@@ -106,12 +106,6 @@ public class ParserInfo {
         }
         for (int i = 0; i < allClauses.size(); i++) {
             Clause clause = allClauses.get(allClauses.size() - 1 - i);
-            // Render non-matches
-            for (var startPos : memoTable.getNonMatchPositions(clause)) {
-                if (startPos <= input.length()) {
-                    buf[i].setCharAt(marginWidth + startPos, 'x');
-                }
-            }
             // Render matches
             for (var match : memoTable.getNonOverlappingMatches(clause)) {
                 if (match.memoKey.startPos <= input.length()) {

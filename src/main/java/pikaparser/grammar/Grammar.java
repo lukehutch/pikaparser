@@ -14,7 +14,6 @@ import pikaparser.clause.aux.RuleRef;
 import pikaparser.clause.terminal.Nothing;
 import pikaparser.clause.terminal.Terminal;
 import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoEntry;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.utils.GrammarUtils;
@@ -121,7 +120,7 @@ public class Grammar {
     /** Main parsing method. */
     public MemoTable parse(String input) {
         // The memo table
-        var memoTable = new MemoTable();
+        var memoTable = new MemoTable(this);
 
         // A set of MemoKey instances for entries that need matching.
         // Uses the concurrent PriorityBlockingQueue, since memo table initialization is parallelized.
@@ -172,16 +171,8 @@ public class Grammar {
         return memoTable.getNonOverlappingMatches(getRule(ruleName).labeledClause.clause);
     }
 
-    /**
-     * Get the {@link Match} entries for all postions where a match was queried for the named rule, but there was no
-     * match.
-     */
-    public List<Integer> getNonMatches(String ruleName, MemoTable memoTable) {
-        return memoTable.getNonMatchPositions(getRule(ruleName).labeledClause.clause);
-    }
-
-    /** Get all {@link MemoEntry} entries for the given clause, indexed by start position. */
-    public NavigableMap<Integer, MemoEntry> getNavigableMatches(String ruleName, MemoTable memoTable) {
+    /** Get all {@link Match} entries for the given clause, indexed by start position. */
+    public NavigableMap<Integer, Match> getNavigableMatches(String ruleName, MemoTable memoTable) {
         return memoTable.getNavigableMatches(getRule(ruleName).labeledClause.clause);
     }
 }
