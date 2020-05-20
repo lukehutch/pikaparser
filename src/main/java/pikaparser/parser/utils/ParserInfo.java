@@ -50,8 +50,7 @@ public class ParserInfo {
     public static void printClauses(Grammar grammar) {
         for (int i = grammar.allClauses.size() - 1; i >= 0; --i) {
             var clause = grammar.allClauses.get(i);
-            System.out.println(
-                    String.format("%3d : %s", grammar.allClauses.size() - 1 - i, clause.toStringWithRuleNames()));
+            System.out.println(String.format("%3d : %s", i, clause.toStringWithRuleNames()));
         }
     }
 
@@ -63,7 +62,7 @@ public class ParserInfo {
         int marginWidth = 0;
         for (int i = 0; i < allClauses.size(); i++) {
             buf[i] = new StringBuilder();
-            buf[i].append(String.format("%3d", i) + " : ");
+            buf[i].append(String.format("%3d", allClauses.size() - 1 - i) + " : ");
             Clause clause = allClauses.get(allClauses.size() - 1 - i);
             if (clause instanceof Terminal) {
                 buf[i].append("[terminal] ");
@@ -196,7 +195,7 @@ public class ParserInfo {
             for (int j = 0, jj = rowLabelMaxWidth - label.length(); j < jj; j++) {
                 rowLabel[i].append(' ');
             }
-            rowLabel[i].append(String.format("%3d", grammar.allClauses.size() - 1 - clauseIdx) + " : ");
+            rowLabel[i].append(String.format("%3d", clauseIdx) + " : ");
             rowLabel[i].append(label);
         }
         var emptyRowLabel = new StringBuilder();
