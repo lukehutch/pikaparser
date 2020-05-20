@@ -36,7 +36,7 @@ public class FollowedBy extends Clause {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = "&" + onlySubClauseToStringWithASTNodeLabel();
+            toStringCached = "&" + labeledSubClauses[0].toStringWithASTNodeLabel(this);
         }
         return toStringCached;
     }

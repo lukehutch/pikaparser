@@ -76,7 +76,7 @@ public class Seq extends Clause {
                 if (i > 0) {
                     buf.append(" ");
                 }
-                subClauseToStringWithASTNodeLabel(i, buf);
+                buf.append(labeledSubClauses[i].toStringWithASTNodeLabel(this));
             }
             toStringCached = buf.toString();
         }

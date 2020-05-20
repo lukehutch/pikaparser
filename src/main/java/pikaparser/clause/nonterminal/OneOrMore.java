@@ -47,7 +47,7 @@ public class OneOrMore extends Clause {
     @Override
     public String toString() {
         if (toStringCached == null) {
-            toStringCached = onlySubClauseToStringWithASTNodeLabel() + "+";
+            toStringCached = labeledSubClauses[0].toStringWithASTNodeLabel(this) + "+";
         }
         return toStringCached;
     }

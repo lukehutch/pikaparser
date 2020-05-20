@@ -147,7 +147,7 @@ public class Match {
 
         var ruleNames = memoKey.clause.getRuleNames();
         var toStr = memoKey.clause.toString();
-        var astNodeLabelNeedsParens = MetaGrammar.addParensAroundASTNodeLabel(memoKey.clause);
+        var astNodeLabelNeedsParens = MetaGrammar.needToAddParensAroundASTNodeLabel(memoKey.clause);
         buf.append(indentStr + (isLastChild ? "└─" : "├─") //
                 + (ruleNames.isEmpty() ? "" : ruleNames + " <- ") //
                 + (astNodeLabel == null ? "" : (astNodeLabel + ":" + (astNodeLabelNeedsParens ? "(" : ""))) //

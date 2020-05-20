@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import pikaparser.clause.aux.ASTNodeLabel;
+import pikaparser.clause.nonterminal.Seq;
 import pikaparser.clause.terminal.Nothing;
 import pikaparser.clause.util.LabeledClause;
 import pikaparser.grammar.MetaGrammar;
@@ -19,27 +20,28 @@ public abstract class Clause {
     /** Subclauses, paired with their AST node label (if there is one). */
     public LabeledClause[] labeledSubClauses;
 
-    /** Rules this clause is a toplevel clause of */
+    /** Rules this clause is a toplevel clause of (used by {@link #toStringWithRuleNames(}) method). */
     public List<Rule> rules;
 
-    /** The parent clauses to seed when this clause's match memo at a given position changes. */
+    /** The parent clauses of this clause that should be matched in the same start position. */
     public final Set<Clause> seedParentClauses = new HashSet<>();
 
-    /** If true, the clause can match zero characters. */
+    /** If true, the clause can match while consuming zero characters. */
     public boolean canMatchZeroChars;
-
-    /** If true, the clause is a descendant of a {@link Seq} clause that can match zero characters. */
-    public boolean descendantOfZeroLenSeq;
 
     /** Index in the topological sort order of clauses, bottom-up. */
     public int clauseIdx;
 
-    public String toStringCached;
-    public String toStringWithRuleNameCached;
+    /** The cached result of the {@link #toString()} method. */
+    protected String toStringCached;
+
+    /** The cached result of the {@link #toStringWithRuleNames()} method. */
+    private String toStringWithRuleNameCached;
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public Clause(Clause... subClauses) {
+    /** Clause constructor. */
+    protected Clause(Clause... subClauses) {
         if (subClauses.length > 0 && subClauses[0] instanceof Nothing) {
             // Nothing can't be the first subclause, since we don't trigger upwards expansion of the DP wavefront
             // by seeding the memo table by matching Nothing at every input position, to keep the memo table small
@@ -51,7 +53,7 @@ public abstract class Clause {
             var subClause = subClauses[i];
             String astNodeLabel = null;
             if (subClause instanceof ASTNodeLabel) {
-                // Transfer ASTNodeLabel.astNodeLabel to NamedClause.astNodeLabel field
+                // Transfer ASTNodeLabel.astNodeLabel to LabeledClause.astNodeLabel field
                 astNodeLabel = ((ASTNodeLabel) subClause).astNodeLabel;
                 // skip over ASTNodeLabel node when adding subClause to subClauses array
                 subClause = subClause.labeledSubClauses[0].clause;
@@ -87,18 +89,15 @@ public abstract class Clause {
 
     /**
      * Sets {@link #canMatchZeroChars} to true if this clause can match zero characters, i.e. always matches at any
-     * input position. Called bottom-up.
-     * 
-     * <p>
-     * Overridden in subclasses.
+     * input position. Called bottom-up. Implemented in subclasses.
      */
     public abstract void determineWhetherCanMatchZeroChars();
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Match a clause top-down (recursively) or bottom-up (looking in the memo-table just one level top-down) at a
-     * given start position.
+     * Match a clause by looking up its subclauses in the memotable (in the case of nonterminals), or by looking at
+     * the input string (in the case of terminals). Implemented in subclasses.
      */
     public abstract Match match(MemoTable memoTable, MemoKey memoKey, String input);
 
@@ -111,30 +110,11 @@ public abstract class Clause {
                         rules.stream().map(rule -> rule.ruleName).sorted().collect(Collectors.toList()));
     }
 
-    protected void subClauseToStringWithASTNodeLabel(int subClauseIdx, StringBuilder buf) {
-        var labeledSubClause = labeledSubClauses[subClauseIdx];
-        var subClause = labeledSubClause.clause;
-        var addParens = MetaGrammar.addParensAroundSubClause(this, subClause, subClauseIdx);
-        if (labeledSubClause.astNodeLabel != null) {
-            buf.append(labeledSubClause.astNodeLabel);
-            buf.append(':');
-            addParens |= MetaGrammar.addParensAroundASTNodeLabel(subClause);
-        }
-        if (addParens) {
-            buf.append('(');
-        }
-        buf.append(labeledSubClauses[subClauseIdx].clause.toString());
-        if (addParens) {
-            buf.append(')');
-        }
+    @Override
+    public String toString() {
+        throw new IllegalArgumentException("toString() needs to be overridden in subclasses");
     }
-
-    protected String onlySubClauseToStringWithASTNodeLabel() {
-        var buf = new StringBuilder();
-        subClauseToStringWithASTNodeLabel(0, buf);
-        return buf.toString();
-    }
-
+    
     public String toStringWithRuleNames() {
         if (toStringWithRuleNameCached == null) {
             if (rules != null) {
@@ -143,13 +123,22 @@ public abstract class Clause {
                 buf.append(getRuleNames());
                 buf.append(" <- ");
                 // Add any AST node labels
+                var addedASTNodeLabels = false;
                 for (int i = 0; i < rules.size(); i++) {
                     var rule = rules.get(i);
                     if (rule.labeledClause.astNodeLabel != null) {
                         buf.append(rule.labeledClause.astNodeLabel + ":");
+                        addedASTNodeLabels = true;
                     }
                 }
+                var addParens = addedASTNodeLabels && MetaGrammar.needToAddParensAroundASTNodeLabel(this);
+                if (addParens) {
+                    buf.append('(');
+                }
                 buf.append(toString());
+                if (addParens) {
+                    buf.append(')');
+                }
                 toStringWithRuleNameCached = buf.toString();
             } else {
                 toStringWithRuleNameCached = toString();

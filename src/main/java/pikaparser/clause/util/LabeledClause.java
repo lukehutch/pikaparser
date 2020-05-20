@@ -12,13 +12,31 @@ public class LabeledClause {
         this.astNodeLabel = astNodeLabel;
     }
 
+    /** Call {@link #toString()}, prepending any AST node label. */
+    public String toStringWithASTNodeLabel(Clause parentClause) {
+        var addParens = parentClause != null && MetaGrammar.needToAddParensAroundSubClause(parentClause, clause);
+        if (astNodeLabel == null && !addParens) {
+            // Fast path
+            return clause.toString();
+        }
+        var buf = new StringBuilder();
+        if (astNodeLabel != null) {
+            buf.append(astNodeLabel);
+            buf.append(':');
+            addParens |= MetaGrammar.needToAddParensAroundASTNodeLabel(clause);
+        }
+        if (addParens) {
+            buf.append('(');
+        }
+        buf.append(clause.toString());
+        if (addParens) {
+            buf.append(')');
+        }
+        return buf.toString();
+    }
+
     @Override
     public String toString() {
-        if (astNodeLabel == null) {
-            return clause.toString();
-        } else {
-            var addParens = MetaGrammar.addParensAroundASTNodeLabel(clause);
-            return astNodeLabel + ":" + (addParens ? "(" : "") + clause.toString() + (addParens ? ")" : "");
-        }
+        return toStringWithASTNodeLabel(null);
     }
 }

@@ -108,7 +108,7 @@ public class ClauseFactory {
         return new Seq(subClauses);
     }
 
-    public static Clause r(String ruleName) {
+    public static Clause ruleRef(String ruleName) {
         return new RuleRef(ruleName);
     }
 

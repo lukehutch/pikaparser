@@ -23,6 +23,7 @@ import pikaparser.parser.ParserInfo;
 import pikaparser.parser.utils.StringUtils;
 
 public class MetaGrammar {
+
     // Rule names:
 
     private static final String GRAMMAR = "GRAMMAR";
@@ -73,13 +74,13 @@ public class MetaGrammar {
     private static Map<Class<? extends Clause>, Integer> clauseTypeToPrecedence = //
             Map.ofEntries( //
                     entry(Terminal.class, 7), //
-                    // Treat RuleRef as a terminal for string interning purposes
+                    // Treat RuleRef as having the same precedence as a terminal for string interning purposes
                     entry(RuleRef.class, 7), //
                     entry(OneOrMore.class, 6), //
-                    // ZeroOrMore is not present in final grammar
+                    // ZeroOrMore is not present in the final grammar, so it is skipped here
                     entry(NotFollowedBy.class, 5), //
                     entry(FollowedBy.class, 5), //
-                    // Optional is not present in final grammar
+                    // Optional is not present in final grammar, so it is skipped here
                     entry(ASTNodeLabel.class, 3), //
                     entry(Seq.class, 2), //
                     entry(First.class, 1) //
@@ -89,119 +90,137 @@ public class MetaGrammar {
 
     public static Grammar grammar = new Grammar(Arrays.asList(//
             rule(GRAMMAR, //
-                    seq(start(), r(WSC), oneOrMore(r(RULE)))), //
+                    seq(start(), ruleRef(WSC), oneOrMore(ruleRef(RULE)))), //
 
             rule(RULE, //
-                    ast(RULE_AST, seq(r(IDENT), r(WSC), //
-                            optional(r(PREC)), //
-                            str("<-"), r(WSC), //
-                            r(CLAUSE), r(WSC), c(';'), r(WSC)))), //
+                    ast(RULE_AST, seq(ruleRef(IDENT), ruleRef(WSC), //
+                            optional(ruleRef(PREC)), //
+                            str("<-"), ruleRef(WSC), //
+                            ruleRef(CLAUSE), ruleRef(WSC), c(';'), ruleRef(WSC)))), //
 
             // Define precedence order for clause sequences
 
             // Parens
-            rule(CLAUSE, 8, /* associativity = */ null, seq(c('('), r(WSC), r(CLAUSE), r(WSC), c(')'))), //
+            rule(CLAUSE, 8, /* associativity = */ null, //
+                    seq(c('('), ruleRef(WSC), ruleRef(CLAUSE), ruleRef(WSC), c(')'))), //
 
             // Terminals
             rule(CLAUSE, 7, /* associativity = */ null, //
                     first( //
-                            r(IDENT), //
-                            r(QUOTED_STRING), //
-                            r(CHAR_SET), //
-                            r(NOTHING), //
-                            r(START))), //
+                            ruleRef(IDENT), //
+                            ruleRef(QUOTED_STRING), //
+                            ruleRef(CHAR_SET), //
+                            ruleRef(NOTHING), //
+                            ruleRef(START))), //
 
             // OneOrMore / ZeroOrMore
             rule(CLAUSE, 6, /* associativity = */ null, //
                     first( //
-                            seq(ast(ONE_OR_MORE_AST, r(CLAUSE)), r(WSC), c("+")),
-                            seq(ast(ZERO_OR_MORE_AST, r(CLAUSE)), r(WSC), c('*')))), //
+                            seq(ast(ONE_OR_MORE_AST, ruleRef(CLAUSE)), ruleRef(WSC), c("+")),
+                            seq(ast(ZERO_OR_MORE_AST, ruleRef(CLAUSE)), ruleRef(WSC), c('*')))), //
 
             // FollowedBy / NotFollowedBy
             rule(CLAUSE, 5, /* associativity = */ null, //
                     first( //
-                            seq(c('&'), ast(FOLLOWED_BY_AST, r(CLAUSE))), //
-                            seq(c('!'), ast(NOT_FOLLOWED_BY_AST, r(CLAUSE))))), //
+                            seq(c('&'), ast(FOLLOWED_BY_AST, ruleRef(CLAUSE))), //
+                            seq(c('!'), ast(NOT_FOLLOWED_BY_AST, ruleRef(CLAUSE))))), //
 
             // Optional
             rule(CLAUSE, 4, /* associativity = */ null, //
-                    seq(ast(OPTIONAL_AST, r(CLAUSE)), r(WSC), c('?'))), //
+                    seq(ast(OPTIONAL_AST, ruleRef(CLAUSE)), ruleRef(WSC), c('?'))), //
 
             // ASTNodeLabel
             rule(CLAUSE, 3, /* associativity = */ null, //
                     ast(LABEL_AST,
-                            seq(ast(LABEL_NAME_AST, r(IDENT)), r(WSC), c(':'), r(WSC),
-                                    ast(LABEL_CLAUSE_AST, r(CLAUSE)), r(WSC)))), //
+                            seq(ast(LABEL_NAME_AST, ruleRef(IDENT)), ruleRef(WSC), c(':'), ruleRef(WSC),
+                                    ast(LABEL_CLAUSE_AST, ruleRef(CLAUSE)), ruleRef(WSC)))), //
 
             // Seq
             rule(CLAUSE, 2, /* associativity = */ null, //
-                    ast(SEQ_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(r(CLAUSE), r(WSC)))))),
+                    ast(SEQ_AST,
+                            seq(ruleRef(CLAUSE), ruleRef(WSC), oneOrMore(seq(ruleRef(CLAUSE), ruleRef(WSC)))))),
 
             // First
             rule(CLAUSE, 1, /* associativity = */ null, //
-                    ast(FIRST_AST, seq(r(CLAUSE), r(WSC), oneOrMore(seq(c('/'), r(WSC), r(CLAUSE), r(WSC)))))),
+                    ast(FIRST_AST,
+                            seq(ruleRef(CLAUSE), ruleRef(WSC),
+                                    oneOrMore(seq(c('/'), ruleRef(WSC), ruleRef(CLAUSE), ruleRef(WSC)))))),
 
+            // Whitespace or comment
             rule(WSC, //
-                    zeroOrMore(first(c(" \n\r\t"), r(COMMENT)))),
+                    zeroOrMore(first(c(" \n\r\t"), ruleRef(COMMENT)))),
 
+            // Comment
             rule(COMMENT, //
                     seq(c('#'), zeroOrMore(c('\n', /* invert = */ true)))),
 
+            // Identifier
             rule(IDENT, //
-                    ast(IDENT_AST, seq(r(NAME_CHAR), zeroOrMore(first(r(NAME_CHAR), c('0', '9')))))), //
+                    ast(IDENT_AST, seq(ruleRef(NAME_CHAR), zeroOrMore(first(ruleRef(NAME_CHAR), c('0', '9')))))), //
 
+            // Number
             rule(NUM, //
                     oneOrMore(c('0', '9'))), //
 
+            // Name character
             rule(NAME_CHAR, //
                     c(c('a', 'z'), c('A', 'Z'), c("_-"))),
 
+            // Precedence and optional associativity modifiers for rule name
             rule(PREC, //
-                    seq(c('['), r(WSC), //
-                            ast(PREC_AST, r(NUM)), r(WSC), //
-                            optional(seq(c(','), r(WSC), //
+                    seq(c('['), ruleRef(WSC), //
+                            ast(PREC_AST, ruleRef(NUM)), ruleRef(WSC), //
+                            optional(seq(c(','), ruleRef(WSC), //
                                     first(ast(R_ASSOC_AST, first(c('r'), c('R'))),
                                             ast(L_ASSOC_AST, first(c('l'), c('L')))),
-                                    r(WSC))), //
-                            c(']'), r(WSC))), //
+                                    ruleRef(WSC))), //
+                            c(']'), ruleRef(WSC))), //
 
+            // Character set
             rule(CHAR_SET, //
                     first( //
-                            seq(c('\''), ast(SINGLE_QUOTED_CHAR_AST, r(SINGLE_QUOTED_CHAR)), c('\'')), //
+                            seq(c('\''), ast(SINGLE_QUOTED_CHAR_AST, ruleRef(SINGLE_QUOTED_CHAR)), c('\'')), //
                             seq(c('['), //
                                     ast(CHAR_RANGE_AST, seq(optional(c('^')), //
                                             oneOrMore(first( //
-                                                    r(CHAR_RANGE), //
-                                                    r(CHAR_RANGE_CHAR))))),
+                                                    ruleRef(CHAR_RANGE), //
+                                                    ruleRef(CHAR_RANGE_CHAR))))),
                                     c(']')))), //
 
+            // Single quoted character
             rule(SINGLE_QUOTED_CHAR, //
                     first( //
-                            r(ESCAPED_CTRL_CHAR), //
+                            ruleRef(ESCAPED_CTRL_CHAR), //
                             c("\'\\").invert())), //
 
-            rule(HEX, c(c('0', '9'), c('a', 'f'), c('A', 'F'))), //
-
+            // Char range
             rule(CHAR_RANGE, //
-                    seq(r(CHAR_RANGE_CHAR), c('-'), r(CHAR_RANGE_CHAR))), //
+                    seq(ruleRef(CHAR_RANGE_CHAR), c('-'), ruleRef(CHAR_RANGE_CHAR))), //
 
+            // Char range character
             rule(CHAR_RANGE_CHAR, //
                     first( //
                             c('\\', ']').invert(), //
-                            r(ESCAPED_CTRL_CHAR), //
+                            ruleRef(ESCAPED_CTRL_CHAR), //
                             str("\\\\"), //
                             str("\\]"), //
                             str("\\^"))),
 
+            // Quoted string
             rule(QUOTED_STRING, //
-                    seq(c('"'), ast(QUOTED_STRING_AST, zeroOrMore(r(STR_QUOTED_CHAR))), c('"'))), //
+                    seq(c('"'), ast(QUOTED_STRING_AST, zeroOrMore(ruleRef(STR_QUOTED_CHAR))), c('"'))), //
 
+            // Character within quoted string
             rule(STR_QUOTED_CHAR, //
                     first( //
-                            r(ESCAPED_CTRL_CHAR), //
+                            ruleRef(ESCAPED_CTRL_CHAR), //
                             c("\"\\").invert() //
                     )), //
 
+            // Hex digit
+            rule(HEX, c(c('0', '9'), c('a', 'f'), c('A', 'F'))), //
+
+            // Escaped control character
             rule(ESCAPED_CTRL_CHAR, //
                     first( //
                             str("\\t"), //
@@ -212,15 +231,22 @@ public class MetaGrammar {
                             str("\\'"), //
                             str("\\\""), //
                             str("\\\\"), //
-                            seq(str("\\u"), r(HEX), r(HEX), r(HEX), r(HEX)))), //
+                            seq(str("\\u"), ruleRef(HEX), ruleRef(HEX), ruleRef(HEX), ruleRef(HEX)))), //
 
+            // Nothing (empty string match)
             rule(NOTHING, //
-                    ast(NOTHING_AST, seq(c('('), r(WSC), c(')')))),
+                    ast(NOTHING_AST, seq(c('('), ruleRef(WSC), c(')')))),
 
+            // Match start position
             rule(START, ast(START_AST, c('^'))) //
     ));
 
-    public static boolean addParensAroundSubClause(Clause parentClause, Clause subClause, int subClauseIdx) {
+    /**
+     * Return true if subClause precedence is less than or equal to parentClause precedence (or if subclause is a
+     * {@link Seq} clause and parentClause is a {@link First} clause, for clarity, even though parens are not needed
+     * because Seq has higher prrecedence).
+     */
+    public static boolean needToAddParensAroundSubClause(Clause parentClause, Clause subClause) {
         int clausePrec = parentClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
                 : clauseTypeToPrecedence.get(parentClause.getClass());
         int subClausePrec = subClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
@@ -231,20 +257,26 @@ public class MetaGrammar {
                 || subClausePrec <= clausePrec);
     }
 
-    public static boolean addParensAroundASTNodeLabel(Clause subClause) {
+    /** Return true if subclause has lower precedence than an AST node label. */
+    public static boolean needToAddParensAroundASTNodeLabel(Clause subClause) {
         int astNodeLabelPrec = clauseTypeToPrecedence.get(ASTNodeLabel.class);
         int subClausePrec = subClause instanceof Terminal ? clauseTypeToPrecedence.get(Terminal.class)
                 : clauseTypeToPrecedence.get(subClause.getClass());
         return subClausePrec < astNodeLabelPrec;
     }
 
-    private static Clause expectOne(List<Clause> clauses) {
+    /**
+     * Expect just a single clause in the list of clauses, and return it, or throw an exception if the length of the
+     * list of clauses is not 1.
+     */
+    private static Clause expectOne(List<Clause> clauses, ASTNode astNode) {
         if (clauses.size() != 1) {
-            throw new IllegalArgumentException("Expected one clause, got " + clauses.size());
+            throw new IllegalArgumentException("Expected one subclause, got " + clauses.size() + ": " + astNode);
         }
         return clauses.get(0);
     }
 
+    /** Recursively parse a list of AST nodes. */
     private static List<Clause> parseASTNodes(List<ASTNode> astNodes) {
         List<Clause> clauses = new ArrayList<>(astNodes.size());
         String nextNodeLabel = null;
@@ -262,6 +294,7 @@ public class MetaGrammar {
         return clauses;
     }
 
+    /** Recursively parse a single AST node. */
     private static Clause parseASTNode(ASTNode astNode) {
         Clause clause;
         switch (astNode.label) {
@@ -272,25 +305,25 @@ public class MetaGrammar {
             clause = first(parseASTNodes(astNode.children));
             break;
         case ONE_OR_MORE_AST:
-            clause = oneOrMore(expectOne(parseASTNodes(astNode.children)));
+            clause = oneOrMore(expectOne(parseASTNodes(astNode.children), astNode));
             break;
         case ZERO_OR_MORE_AST:
-            clause = zeroOrMore(expectOne(parseASTNodes(astNode.children)));
+            clause = zeroOrMore(expectOne(parseASTNodes(astNode.children), astNode));
             break;
         case OPTIONAL_AST:
-            clause = optional(expectOne(parseASTNodes(astNode.children)));
+            clause = optional(expectOne(parseASTNodes(astNode.children), astNode));
             break;
         case FOLLOWED_BY_AST:
-            clause = followedBy(expectOne(parseASTNodes(astNode.children)));
+            clause = followedBy(expectOne(parseASTNodes(astNode.children), astNode));
             break;
         case NOT_FOLLOWED_BY_AST:
-            clause = notFollowedBy(expectOne(parseASTNodes(astNode.children)));
+            clause = notFollowedBy(expectOne(parseASTNodes(astNode.children), astNode));
             break;
         case LABEL_AST:
             clause = ast(astNode.getFirstChild().getText(), parseASTNode(astNode.getSecondChild().getFirstChild()));
             break;
         case IDENT_AST:
-            clause = r(astNode.getText()); // Rule name ref
+            clause = ruleRef(astNode.getText()); // Rule name ref
             break;
         case QUOTED_STRING_AST: // Doesn't include surrounding quotes
             clause = str(StringUtils.unescapeString(astNode.getText()));
@@ -314,12 +347,13 @@ public class MetaGrammar {
             break;
         default:
             // Keep recursing for parens (the only type of AST node that doesn't have a label)
-            clause = expectOne(parseASTNodes(astNode.children));
+            clause = expectOne(parseASTNodes(astNode.children), astNode);
             break;
         }
         return clause;
     }
 
+    /** Parse a rule in the AST, returning a new {@link Rule}. */
     private static Rule parseRule(ASTNode ruleNode, String input) {
         String ruleName = ruleNode.getFirstChild().getText();
         var hasPrecedence = ruleNode.children.size() > 2;
@@ -336,13 +370,14 @@ public class MetaGrammar {
         return rule(ruleName, precedence, associativity, clause);
     }
 
+    /** Parse a grammar description in an input string, returning a new {@link Grammar} object. */
     public static Grammar parse(String input) {
         var memoTable = grammar.parse(input);
 
         //        ParserInfo.printParseResult("GRAMMAR", grammar, memoTable, input,
         //                new String[] { "GRAMMAR", "RULE", "CLAUSE[0]" }, /* showAllMatches = */ false);
         //
-        //        System.out.println("\nParsed grammar:");
+        //        System.out.println("\nParsed meta-grammar:");
         //        for (var clause : MetaGrammar.grammar.allClauses) {
         //            System.out.println("    " + clause.toStringWithRuleNames());
         //        }
@@ -365,8 +400,6 @@ public class MetaGrammar {
         }
 
         var topLevelASTNode = topLevelMatches.get(0).toAST("<root>", input);
-
-        // System.out.println(topLevelASTNode);
 
         List<Rule> rules = new ArrayList<>();
         for (ASTNode astNode : topLevelASTNode.children) {
