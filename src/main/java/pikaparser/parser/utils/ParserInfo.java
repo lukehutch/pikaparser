@@ -217,11 +217,12 @@ public class ParserInfo {
             emptyRowLabel.append(' ');
         }
         var edgeMarkers = new StringBuilder();
-        for (int i = 0, ii = input.length() * 2 + 1; i < ii; i++) {
+        edgeMarkers.append(' ');
+        for (int i = 1, ii = input.length() * 2; i < ii; i++) {
             edgeMarkers.append('░');
         }
-        // Append two extra chars for zero-length matches past end of string
-        edgeMarkers.append("  ");
+        // Append one char for last column boundary, and two extra chars for zero-length matches past end of string
+        edgeMarkers.append("   ");
 
         // Add tree structure to right of row label
         for (var row = 0; row < clauseForRow.size(); row++) {
