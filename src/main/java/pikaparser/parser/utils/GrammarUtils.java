@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.Map.Entry;
 
 import pikaparser.ast.LabeledClause;
 import pikaparser.clause.Clause;
@@ -48,40 +46,6 @@ import pikaparser.grammar.Rule.Associativity;
 
 /** Grammar utils. */
 public class GrammarUtils {
-    /** Add a range to a union of ranges. */
-    public static void addRange(int startPos, int endPos, String input,
-            TreeMap<Integer, Entry<Integer, String>> ranges) {
-        // Try merging new range with floor entry in TreeMap
-        var floorEntry = ranges.floorEntry(startPos);
-        var floorEntryStart = floorEntry == null ? null : floorEntry.getKey();
-        var floorEntryEnd = floorEntry == null ? null : floorEntry.getValue().getKey();
-        int newEntryRangeStart;
-        int newEntryRangeEnd;
-        if (floorEntryStart == null || floorEntryEnd < startPos) {
-            // There is no startFloorEntry, or startFloorEntry ends before startPos -- add a new entry
-            newEntryRangeStart = startPos;
-            newEntryRangeEnd = endPos;
-        } else {
-            // startFloorEntry overlaps with range -- extend startFloorEntry
-            newEntryRangeStart = floorEntryStart;
-            newEntryRangeEnd = Math.max(floorEntryEnd, endPos);
-        }
-        var newEntryMatchStr = input.substring(startPos, endPos);
-        ranges.put(newEntryRangeStart, new SimpleEntry<>(newEntryRangeEnd, newEntryMatchStr));
-
-        // Try merging new range with the following entry in TreeMap
-        var higherEntry = ranges.higherEntry(newEntryRangeStart);
-        var higherEntryStart = higherEntry == null ? null : higherEntry.getKey();
-        var higherEntryEnd = higherEntry == null ? null : higherEntry.getValue().getKey();
-        if (higherEntryStart != null && higherEntryStart <= newEntryRangeEnd) {
-            // Expanded-range entry overlaps with the following entry -- collapse them into one
-            ranges.remove(higherEntryStart);
-            var expandedRangeEnd = Math.max(newEntryRangeEnd, higherEntryEnd);
-            var expandedRangeMatchStr = input.substring(newEntryRangeStart, expandedRangeEnd);
-            ranges.put(newEntryRangeStart, new SimpleEntry<>(expandedRangeEnd, expandedRangeMatchStr));
-        }
-    }
-
     /** Find reachable clauses, and bottom-up (postorder), find clauses that always match in every position. */
     private static void findTerminals(Clause clause, HashSet<Clause> visited, List<Clause> terminalsOut) {
         if (visited.add(clause)) {

@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 
 import pikaparser.clause.Clause;
 import pikaparser.grammar.Grammar;
-import pikaparser.parser.utils.GrammarUtils;
+import pikaparser.parser.utils.IntervalUnion;
 
 /** A memo entry for a specific {@link Clause} at a specific start position. */
 public class MemoTable {
@@ -185,39 +185,19 @@ public class MemoTable {
     public NavigableMap<Integer, Entry<Integer, String>> getSyntaxErrors(Grammar grammar, String input,
             String... syntaxCoverageRuleNames) {
         // Find the range of characters spanned by matches for each of the coverageRuleNames
-        var parsedRanges = new TreeMap<Integer, Entry<Integer, String>>();
+        var parsedRanges = new IntervalUnion();
         for (var coverageRuleName : syntaxCoverageRuleNames) {
-            var rule = grammar.ruleNameWithPrecedenceToRule.get(coverageRuleName);
-            if (rule != null) {
-                for (var match : getNonOverlappingMatches(rule.labeledClause.clause)) {
-                    GrammarUtils.addRange(match.memoKey.startPos, match.memoKey.startPos + match.len, input,
-                            parsedRanges);
-                }
+            var rule = grammar.getRule(coverageRuleName);
+            for (var match : getNonOverlappingMatches(rule.labeledClause.clause)) {
+                parsedRanges.addRange(match.memoKey.startPos, match.memoKey.startPos + match.len);
             }
         }
-        // Find the inverse of the spanned ranges -- these are the syntax errors
-        var syntaxErrorRanges = new TreeMap<Integer, Entry<Integer, String>>();
-        int prevEndPos = 0;
-        for (var ent : parsedRanges.entrySet()) {
-            var currStartPos = ent.getKey();
-            var currEndPos = ent.getValue().getKey();
-            if (currStartPos > prevEndPos) {
-                // At least one character was not matched by one of the listed rules
-                syntaxErrorRanges.put(prevEndPos,
-                        new SimpleEntry<>(currStartPos, input.substring(prevEndPos, currStartPos)));
-            }
-            prevEndPos = currEndPos;
-        }
-        if (!parsedRanges.isEmpty()) {
-            var lastEnt = parsedRanges.lastEntry();
-            var lastEntEndPos = lastEnt.getValue().getKey();
-            if (lastEntEndPos < input.length()) {
-                // There was at least one character before the end of the string that was not matched
-                // by one of the listed rules
-                syntaxErrorRanges.put(lastEntEndPos,
-                        new SimpleEntry<>(input.length(), input.substring(lastEntEndPos, input.length())));
-            }
-        }
-        return syntaxErrorRanges;
+        // Find the inverse of the parsed ranges -- these are the syntax errors
+        var unparsedRanges = parsedRanges.invert(0, input.length()).getNonOverlappingRanges();
+        // Extract the input string span for each unparsed range
+        var syntaxErrorSpans = new TreeMap<Integer, Entry<Integer, String>>();
+        unparsedRanges.entrySet().stream().forEach(ent -> syntaxErrorSpans.put(ent.getKey(),
+                new SimpleEntry<>(ent.getValue(), input.substring(ent.getKey(), ent.getValue()))));
+        return syntaxErrorSpans;
     }
 }

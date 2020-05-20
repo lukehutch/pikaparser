@@ -415,7 +415,8 @@ public class MetaGrammar {
         //            System.out.println("    " + clause.toStringWithRuleNames());
         //        }
 
-        var syntaxErrors = memoTable.getSyntaxErrors(grammar, input, new String[] { GRAMMAR, RULE, CLAUSE });
+        var syntaxErrors = memoTable.getSyntaxErrors(grammar, input,
+                new String[] { GRAMMAR, RULE, CLAUSE + "[" + clauseTypeToPrecedence.get(First.class) + "]" });
         if (syntaxErrors.isEmpty()) {
             ParserInfo.printSyntaxErrors(syntaxErrors);
         }

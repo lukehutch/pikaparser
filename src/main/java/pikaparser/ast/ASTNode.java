@@ -43,7 +43,7 @@ public class ASTNode {
     public final int startPos;
     public final int len;
     public final String input;
-    public final List<ASTNode> children;
+    public final List<ASTNode> children = new ArrayList<>();
 
     private ASTNode(String label, Clause nodeType, int startPos, int len, String input) {
         this.label = label;
@@ -51,7 +51,6 @@ public class ASTNode {
         this.startPos = startPos;
         this.len = len;
         this.input = input;
-        this.children = new ArrayList<>();
     }
 
     /** Recursively create an AST from a parse tree. */

@@ -144,20 +144,34 @@ public class ParserInfo {
     }
 
     /** Print the parse tree in memo table form. */
-    public static void printParseTreeInMemoTableForm(String toplevelRuleName, Grammar grammar, MemoTable memoTable,
-            String input) {
+    public static void printParseTreeInMemoTableForm(Grammar grammar, MemoTable memoTable, String input) {
         if (grammar.allClauses.size() == 0) {
             throw new IllegalArgumentException("Grammar is empty");
         }
 
-        // Get all nonoverlapping matches of the toplevel rule
-        Map<Integer, Map<Integer, Map<Integer, Match>>> cycleDepthToMatches = new TreeMap<>(
+        // Map from cycle depth (sorted in decreasing order) -> clauseIdx -> startPos -> match
+        var cycleDepthToMatches = new TreeMap<Integer, Map<Integer, Map<Integer, Match>>>(
                 Collections.reverseOrder());
+
+        // Input spanned by matches found so far
+        var inputSpanned = new IntervalUnion();
+
+        // Get all nonoverlapping matches of the toplevel rule.
         var maxCycleDepth = 0;
-        for (var topLevelMatch : grammar.getNonOverlappingMatches(toplevelRuleName, memoTable)) {
-            // Pack matches into the lowest cycle they will fit into
-            var cycleDepth = findCycleDepth(topLevelMatch, cycleDepthToMatches);
-            maxCycleDepth = Math.max(maxCycleDepth, cycleDepth);
+        for (var clauseIdx = grammar.allClauses.size() - 1; clauseIdx >= 0; --clauseIdx) {
+            var clause = grammar.allClauses.get(clauseIdx);
+            for (var match : memoTable.getNonOverlappingMatches(clause)) {
+                var matchStartPos = match.memoKey.startPos;
+                var matchEndPos = matchStartPos + match.len;
+                // Only add parse tree to chart if it doesn't overlap with input spanned by a higher-level match
+                if (!inputSpanned.rangeOverlaps(matchStartPos, matchEndPos)) {
+                    // Pack matches into the lowest cycle they will fit into
+                    var cycleDepth = findCycleDepth(match, cycleDepthToMatches);
+                    maxCycleDepth = Math.max(maxCycleDepth, cycleDepth);
+                    // Add the range spanned by this match
+                    inputSpanned.addRange(matchStartPos, matchEndPos);
+                }
+            }
         }
 
         // Assign matches to rows
@@ -203,9 +217,11 @@ public class ParserInfo {
             emptyRowLabel.append(' ');
         }
         var edgeMarkers = new StringBuilder();
-        for (int i = 0, ii = (input.length() + 1) * 2 + 1; i < ii; i++) {
-            edgeMarkers.append(' ');
+        for (int i = 0, ii = input.length() * 2 + 1; i < ii; i++) {
+            edgeMarkers.append('░');
         }
+        // Append two extra chars for zero-length matches past end of string
+        edgeMarkers.append("  ");
 
         // Add tree structure to right of row label
         for (var row = 0; row < clauseForRow.size(); row++) {
@@ -245,6 +261,11 @@ public class ParserInfo {
                 var endIdx = startIdx + match.len;
                 edgeMarkers.setCharAt(startIdx * 2, '│');
                 edgeMarkers.setCharAt(endIdx * 2, '│');
+                for (int i = startIdx * 2 + 1, ii = endIdx * 2; i < ii; i++) {
+                    if (edgeMarkers.charAt(i) == '░') {
+                        edgeMarkers.setCharAt(i, ' ');
+                    }
+                }
             }
             rowTreeChars.setLength(0);
             rowTreeChars.append(edgeMarkers);
@@ -320,7 +341,7 @@ public class ParserInfo {
         // Print memo table
         System.out.println();
         System.out.println("Match tree for rule " + topLevelRuleName + ":");
-        printParseTreeInMemoTableForm(topLevelRuleName, grammar, memoTable, input);
+        printParseTreeInMemoTableForm(grammar, memoTable, input);
 
         // Print all matches for each clause
         for (Clause clause : grammar.allClauses) {
