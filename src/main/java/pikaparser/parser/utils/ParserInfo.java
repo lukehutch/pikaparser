@@ -275,7 +275,7 @@ public class ParserInfo {
                 var startIdx = match.memoKey.startPos;
                 var endIdx = startIdx + match.len;
                 for (int i = startIdx; i < endIdx; i++) {
-                    rowTreeChars.setCharAt(i * 2 + 1, input.charAt(i));
+                    rowTreeChars.setCharAt(i * 2 + 1, StringUtils.replaceNonASCII(input.charAt(i)));
                 }
             }
             for (var zeroLenMatchIdx : zeroLenMatchIdxs) {
@@ -301,9 +301,8 @@ public class ParserInfo {
             System.out.print(' ');
         }
         System.out.print(' ');
-        var str = StringUtils.replaceNonASCII(input);
         for (int i = 0; i < input.length(); i++) {
-            System.out.print(StringUtils.replaceNonASCII(str.charAt(i)));
+            System.out.print(StringUtils.replaceNonASCII(input.charAt(i)));
             System.out.print(' ');
         }
         System.out.println();
