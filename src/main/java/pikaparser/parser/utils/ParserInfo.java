@@ -345,7 +345,8 @@ public class ParserInfo {
         printParseTreeInMemoTableForm(grammar, memoTable, input);
 
         // Print all matches for each clause
-        for (Clause clause : grammar.allClauses) {
+        for (var i = grammar.allClauses.size() - 1; i >= 0; --i) {
+            var clause = grammar.allClauses.get(i); 
             var matches = memoTable.getAllMatches(clause);
             if (!matches.isEmpty()) {
                 System.out.println("\n====================================\n\nMatches for "
@@ -363,8 +364,8 @@ public class ParserInfo {
                     }
                 }
                 var prevEndPos = -1;
-                for (int i = 0; i < matches.size(); i++) {
-                    var match = matches.get(i);
+                for (int j = 0; j < matches.size(); j++) {
+                    var match = matches.get(j);
                     // Indent matches that overlap with previous longest match
                     var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
                     if (!overlapsPrevMatch || showAllMatches) {

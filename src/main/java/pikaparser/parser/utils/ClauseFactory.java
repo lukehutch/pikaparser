@@ -133,12 +133,21 @@ public class ClauseFactory {
 
     /** Construct a terminal that matches a string token. */
     public static Clause str(String str) {
-        return new CharSeq(str, /* ignoreCase = */ false);
+        if (str.length() == 1) {
+            return c(str.charAt(0));
+        } else {
+            return new CharSeq(str, /* ignoreCase = */ false);
+        }
     }
 
     /** Construct a terminal that matches one instance of any character given in the varargs param. */
     public static CharSet c(char... chrs) {
         return new CharSet(chrs);
+    }
+
+    /** Construct a terminal that matches one instance of any character in a given string. */
+    public static CharSet cInStr(String str) {
+        return new CharSet(str.toCharArray());
     }
 
     /** Construct a terminal that matches a character range. */

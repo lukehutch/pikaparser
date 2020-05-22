@@ -68,8 +68,8 @@ public class First extends Clause {
             var subClauseMatch = memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch != null) {
                 // Return a match for the first matching subclause
-                return new Match(memoKey, /* firstMatchingSubclauseIdx = */ subClauseIdx,
-                        /* len = */ subClauseMatch.len, new Match[] { subClauseMatch });
+                return new Match(memoKey, /* len = */ subClauseMatch.len,
+                        /* firstMatchingSubclauseIdx = */ subClauseIdx, new Match[] { subClauseMatch });
             }
         }
         return null;

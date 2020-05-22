@@ -163,6 +163,7 @@ public class GrammarUtils {
             throw new IllegalArgumentException(
                     "Rules should not contain cycles when they are created: " + selfRefRuleName);
         }
+        visited.remove(clause);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -330,24 +331,34 @@ public class GrammarUtils {
     public static void resolveRuleRefs(LabeledClause labeledClause, Map<String, Rule> ruleNameToRule,
             Map<String, String> ruleNameToLowestPrecedenceLevelRuleName, Set<Clause> visited) {
         if (labeledClause.clause instanceof RuleRef) {
-            // Look up rule from name in RuleRef
-            String refdRuleName = ((RuleRef) labeledClause.clause).refdRuleName;
+            // Follow a chain of from name in RuleRef objects until a non-RuleRef is reached
+            var currLabeledClause = labeledClause;
+            var visitedClauses = new HashSet<Clause>();
+            while (currLabeledClause.clause instanceof RuleRef) {
+                if (!visitedClauses.add(currLabeledClause.clause)) {
+                    throw new IllegalArgumentException(
+                            "Reached toplevel RuleRef cycle: " + currLabeledClause.clause);
+                }
+                // Follow a chain of from name in RuleRef objects until a non-RuleRef is reached
+                var refdRuleName = ((RuleRef) currLabeledClause.clause).refdRuleName;
 
-            // Check if the rule is the reference to the lowest precedence rule of a precedence hierarchy
-            var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
+                // Check if the rule is the reference to the lowest precedence rule of a precedence hierarchy
+                var lowestPrecRuleName = ruleNameToLowestPrecedenceLevelRuleName.get(refdRuleName);
 
-            // Look up Rule based on rule name
-            var refdRule = ruleNameToRule.get(lowestPrecRuleName == null ? refdRuleName : lowestPrecRuleName);
-            if (refdRule == null) {
-                throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
+                // Look up Rule based on rule name
+                var refdRule = ruleNameToRule.get(lowestPrecRuleName == null ? refdRuleName : lowestPrecRuleName);
+                if (refdRule == null) {
+                    throw new IllegalArgumentException("Unknown rule name: " + refdRuleName);
+                }
+                currLabeledClause = refdRule.labeledClause;
             }
 
             // Set current clause to a direct reference to the referenced rule
-            labeledClause.clause = refdRule.labeledClause.clause;
+            labeledClause.clause = currLabeledClause.clause;
 
             // Copy across AST node label, if any
             if (labeledClause.astNodeLabel == null) {
-                labeledClause.astNodeLabel = refdRule.labeledClause.astNodeLabel;
+                labeledClause.astNodeLabel = currLabeledClause.astNodeLabel;
             }
             // Stop recursing at RuleRef
         } else {

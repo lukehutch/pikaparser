@@ -48,35 +48,35 @@ public class Match {
 
     /** The length of the match. */
     public final int len;
-
-    /** The subclause matches. */
-    private final Match[] subClauseMatches;
-
+    
     /**
      * The subclause index of the first matching subclause (will be 0 unless {@link #labeledClause} is a
      * {@link First}, and the matching clause was not the first subclause).
      */
     private int firstMatchingSubClauseIdx;
 
+    /** The subclause matches. */
+    private final Match[] subClauseMatches;
+
     /** There are no subclause matches for terminals. */
     public static final Match[] NO_SUBCLAUSE_MATCHES = new Match[0];
 
     /** Construct a new match. */
-    public Match(MemoKey memoKey, int firstMatchingSubClauseIdx, int len, Match[] subClauseMatches) {
+    public Match(MemoKey memoKey, int len, int firstMatchingSubClauseIdx, Match[] subClauseMatches) {
         this.memoKey = memoKey;
-        this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
         this.len = len;
+        this.firstMatchingSubClauseIdx = firstMatchingSubClauseIdx;
         this.subClauseMatches = subClauseMatches;
     }
 
     /** Construct a new match of a nonterminal clause other than {@link First}. */
     public Match(MemoKey memoKey, int len, Match[] subClauseMatches) {
-        this(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, subClauseMatches);
+        this(memoKey, len, /* firstMatchingSubClauseIdx = */ 0, subClauseMatches);
     }
 
     /** Construct a new terminal match. */
     public Match(MemoKey memoKey, int len) {
-        this(memoKey, /* firstMatchingSubClauseIdx = */ 0, len, /* subClauseMatches = */ NO_SUBCLAUSE_MATCHES);
+        this(memoKey, len, /* firstMatchingSubClauseIdx = */ 0, /* subClauseMatches = */ NO_SUBCLAUSE_MATCHES);
     }
 
     /** Construct a new zero-length match without subclauses. */
