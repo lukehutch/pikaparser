@@ -33,11 +33,16 @@ package pikaparser.parser.utils;
 public class StringUtils {
     private static final char NON_ASCII_CHAR = '■';
 
+    /** Replace non-ASCII/non-printable char with a block. */
+    public static char replaceNonASCII(char c) {
+        return c < 32 || c > 126 ? NON_ASCII_CHAR : c;
+    }
+
     /** Replace all non-ASCII/non-printable characters with a block. */
     public static void replaceNonASCII(String str, StringBuilder buf) {
         for (int i = 0; i < str.length(); i++) {
             char c = str.charAt(i);
-            buf.append(c < 32 || c > 126 ? NON_ASCII_CHAR : c);
+            buf.append(replaceNonASCII(c));
         }
     }
 

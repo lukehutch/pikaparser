@@ -303,7 +303,7 @@ public class ParserInfo {
         System.out.print(' ');
         var str = StringUtils.replaceNonASCII(input);
         for (int i = 0; i < input.length(); i++) {
-            System.out.print(str.charAt(i));
+            System.out.print(StringUtils.replaceNonASCII(str.charAt(i)));
             System.out.print(' ');
         }
         System.out.println();
