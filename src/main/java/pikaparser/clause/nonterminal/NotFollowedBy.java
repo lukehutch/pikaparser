@@ -42,8 +42,7 @@ public class NotFollowedBy extends Clause {
 
     @Override
     public void determineWhetherCanMatchZeroChars() {
-        // Set canMatchZeroChars to true, because NotFollowedBy needs to be triggered even if
-        // its subclause does not match -- see memoTable.addMatch
+        // Set canMatchZeroChars to true
         canMatchZeroChars = true;
         if (labeledSubClauses[0].clause.canMatchZeroChars) {
             throw new IllegalArgumentException(

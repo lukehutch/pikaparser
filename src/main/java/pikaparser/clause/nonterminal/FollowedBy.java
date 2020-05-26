@@ -43,7 +43,7 @@ public class FollowedBy extends Clause {
     @Override
     public void determineWhetherCanMatchZeroChars() {
         // Don't set canMatchZeroChars to true, because FollowedBy will only match if it subclause
-        // consumes at least one character
+        // consumes at least one matching character
         if (labeledSubClauses[0].clause.canMatchZeroChars) {
             throw new IllegalArgumentException(
                     "Subclause always matches zero characters, so this clause has no effect: " + this);

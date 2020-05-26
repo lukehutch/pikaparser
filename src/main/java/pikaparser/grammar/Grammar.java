@@ -35,8 +35,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.stream.Collectors;
 
 import pikaparser.clause.Clause;
 import pikaparser.clause.aux.RuleRef;
@@ -156,36 +157,25 @@ public class Grammar {
 
     /** Main parsing method. */
     public MemoTable parse(String input) {
-        // The memo table
-        var memoTable = new MemoTable(this);
+        var priorityQueue = new PriorityQueue<Clause>((c1, c2) -> c1.clauseIdx - c2.clauseIdx);
 
-        // A set of MemoKey instances for entries that need matching.
-        // Uses the concurrent PriorityBlockingQueue, since memo table initialization is parallelized.
-        var priorityQueue = new PriorityBlockingQueue<MemoKey>();
+        var memoTable = new MemoTable(this, input, priorityQueue);
 
-        // Find positions that all terminals match, and create the initial active set from parents of terminals,
-        // without adding memo table entries for terminals that do not match (no non-matching placeholder needs
-        // to be added to the memo table, because the match status of a given terminal at a given position will
-        // never change).
-        allClauses.parallelStream() //
-                .filter(clause -> clause instanceof Terminal
-                        // Don't match Nothing everywhere -- it always matches
-                        && !(clause instanceof Nothing))
-                .forEach(clause -> {
-                    for (var startPos = 0; startPos < input.length(); startPos++) {
-                        var memoKey = new MemoKey(clause, startPos);
-                        var match = clause.match(memoTable, memoKey, input);
-                        memoTable.addMatch(memoKey, match, priorityQueue);
-                    }
-                });
+        var terminals = allClauses.stream().filter(clause -> clause instanceof Terminal
+                // Don't match Nothing everywhere -- it always matches
+                && !(clause instanceof Nothing)) //
+                .collect(Collectors.toList());
 
         // Main parsing loop
-        while (!priorityQueue.isEmpty()) {
-            // Remove a MemoKey from priority queue (which is ordered from the end of the input to the beginning
-            // and from lowest clauses to toplevel clauses), and try matching the MemoKey bottom-up
-            var memoKey = priorityQueue.remove();
-            var match = memoKey.clause.match(memoTable, memoKey, input);
-            memoTable.addMatch(memoKey, match, priorityQueue);
+        for (int startPos = input.length() - 1; startPos >= 0; --startPos) {
+            priorityQueue.addAll(terminals);
+            while (!priorityQueue.isEmpty()) {
+                // Remove a clause from the priority queue (ordered from terminals to toplevel clauses)
+                var clause = priorityQueue.remove();
+                var memoKey = new MemoKey(clause, startPos);
+                var match = clause.match(memoTable, memoKey, input);
+                memoTable.addMatch(memoKey, match);
+            }
         }
         return memoTable;
     }

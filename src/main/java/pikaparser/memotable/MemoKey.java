@@ -32,7 +32,7 @@ package pikaparser.memotable;
 import pikaparser.clause.Clause;
 
 /** A memo table key, consisting of a {@link Clause} and a match start position. */
-public class MemoKey implements Comparable<MemoKey> {
+public class MemoKey {
     /** The {@link Clause}. */
     public final Clause clause;
 
@@ -42,21 +42,6 @@ public class MemoKey implements Comparable<MemoKey> {
     public MemoKey(Clause clause, int startPos) {
         this.clause = clause;
         this.startPos = startPos;
-    }
-
-    /**
-     * Define the sort order for {@link MemoKey} instances (this specifies the order in which memo keys are removed
-     * from the priority queue).
-     */
-    @Override
-    public int compareTo(MemoKey other) {
-        // Parse right to left 
-        int diff = -(this.startPos - other.startPos);
-        if (diff != 0) {
-            return diff;
-        }
-        // Break ties using clause topological sort index, i.e. parse bottom-up 
-        return this.clause.clauseIdx - other.clause.clauseIdx;
     }
 
     @Override

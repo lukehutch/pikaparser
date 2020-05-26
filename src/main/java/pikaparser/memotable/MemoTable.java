@@ -31,18 +31,17 @@ package pikaparser.memotable;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.PriorityQueue;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import pikaparser.clause.Clause;
+import pikaparser.clause.nonterminal.NotFollowedBy;
 import pikaparser.grammar.Grammar;
 import pikaparser.parser.utils.IntervalUnion;
 
@@ -52,7 +51,16 @@ public class MemoTable {
      * A map from clause to startPos to a {@link Match} for the memo entry. (Use concurrent data structures so that
      * terminals can be memoized in parallel during initialization.)
      */
-    private Map<Clause, NavigableMap<Integer, Match>> memoTable = new ConcurrentHashMap<>();
+    private Map<MemoKey, Match> memoTable = new HashMap<>();
+
+    /** The grammar. */
+    public Grammar grammar;
+
+    /** The input string. */
+    public String input;
+
+    /** The priority queue. */
+    private PriorityQueue<Clause> priorityQueue;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -66,11 +74,10 @@ public class MemoTable {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public MemoTable(Grammar grammar) {
-        for (var clause : grammar.allClauses) {
-            // Use a concurrent data structure so that terminals can be memoized in parallel during initialization
-            memoTable.put(clause, new ConcurrentSkipListMap<>());
-        }
+    public MemoTable(Grammar grammar, String input, PriorityQueue<Clause> priorityQueue) {
+        this.grammar = grammar;
+        this.input = input;
+        this.priorityQueue = priorityQueue;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -78,10 +85,14 @@ public class MemoTable {
     /** Look up the current best match for a given {@link MemoKey} in the memo table. */
     public Match lookUpBestMatch(MemoKey memoKey) {
         // Find current best match in memo table (null if there is no current best match)
-        var bestMatch = memoTable.get(memoKey.clause).get(memoKey.startPos);
+        var bestMatch = memoTable.get(memoKey);
         if (bestMatch != null) {
             // If there is a current best match, return it
             return bestMatch;
+
+        } else if (memoKey.clause instanceof NotFollowedBy) {
+            // Need to match NotFollowedBy top-down
+            return memoKey.clause.match(this, memoKey, input);
 
         } else if (memoKey.clause.canMatchZeroChars) {
             // If there is no match in the memo table for this clause, but this clause can match zero characters,
@@ -99,20 +110,19 @@ public class MemoTable {
      * Add a new {@link Match} to the memo table, if the match is non-null. Schedule seed parent clauses for
      * matching if the match is non-null or if the parent clause can match zero characters.
      */
-    public void addMatch(MemoKey memoKey, Match newMatch, PriorityBlockingQueue<MemoKey> priorityQueue) {
+    public void addMatch(MemoKey memoKey, Match newMatch) {
         var matchUpdated = false;
         if (newMatch != null) {
             // Track memoization
             numMatchObjectsCreated.incrementAndGet();
 
             // Get the memo entry for memoKey if already present; if not, create a new entry
-            var clauseMatches = memoTable.get(memoKey.clause);
-            var oldMatch = clauseMatches.get(memoKey.startPos);
+            var oldMatch = memoTable.get(memoKey);
 
             // If there is no old match, or the new match is better than the old match
             if ((oldMatch == null || newMatch.isBetterThan(oldMatch))) {
                 // Store the new match in the memo entry
-                clauseMatches.put(memoKey.startPos, newMatch);
+                memoTable.put(memoKey, newMatch);
                 matchUpdated = true;
 
                 // Track memoization
@@ -127,11 +137,10 @@ public class MemoTable {
             // zero characters, schedule the parent clause for matching. (This is part of the strategy
             // for minimizing the number of zero-length matches that are memoized.)
             if (matchUpdated || seedParentClause.canMatchZeroChars) {
-                var parentMemoKey = new MemoKey(seedParentClause, memoKey.startPos);
-                priorityQueue.add(parentMemoKey);
+                priorityQueue.add(seedParentClause);
                 if (Grammar.DEBUG) {
-                    System.out
-                            .println("    Following seed parent clause: " + parentMemoKey.toStringWithRuleNames());
+                    System.out.println(
+                            "    Following seed parent clause: " + seedParentClause.toStringWithRuleNames());
                 }
             }
         }
@@ -143,14 +152,58 @@ public class MemoTable {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Get all {@link Match} entries, indexed by clause then start position. */
+    public Map<Clause, NavigableMap<Integer, Match>> getAllNavigableMatches() {
+        var clauseMap = new HashMap<Clause, NavigableMap<Integer, Match>>();
+        memoTable.values().stream().forEach(match -> {
+            var startPosMap = clauseMap.get(match.memoKey.clause);
+            if (startPosMap == null) {
+                startPosMap = new TreeMap<>();
+                clauseMap.put(match.memoKey.clause, startPosMap);
+            }
+            startPosMap.put(match.memoKey.startPos, match);
+        });
+        return clauseMap;
+    }
+
+    /** Get all nonoverlapping {@link Match} entries, indexed by clause then start position. */
+    public Map<Clause, NavigableMap<Integer, Match>> getAllNonOverlappingMatches() {
+        var nonOverlappingClauseMap = new HashMap<Clause, NavigableMap<Integer, Match>>();
+        for (var ent : getAllNavigableMatches().entrySet()) {
+            var clause = ent.getKey();
+            var startPosMap = ent.getValue();
+            var prevEndPos = 0;
+            var nonOverlappingStartPosMap = new TreeMap<Integer, Match>();
+            for (var startPosEnt : startPosMap.entrySet()) {
+                var startPos = startPosEnt.getKey();
+                if (startPos >= prevEndPos) {
+                    var match = startPosEnt.getValue();
+                    nonOverlappingStartPosMap.put(startPos, match);
+                    var endPos = startPos + match.len;
+                    prevEndPos = endPos;
+                }
+            }
+            nonOverlappingClauseMap.put(clause, nonOverlappingStartPosMap);
+        }
+        return nonOverlappingClauseMap;
+    }
+
     /** Get all {@link Match} entries for the given clause, indexed by start position. */
     public NavigableMap<Integer, Match> getNavigableMatches(Clause clause) {
-        return memoTable.get(clause);
+        var treeMap = new TreeMap<Integer, Match>();
+        memoTable.entrySet().stream().forEach(ent -> {
+            if (ent.getKey().clause == clause) {
+                treeMap.put(ent.getKey().startPos, ent.getValue());
+            }
+        });
+        return treeMap;
     }
 
     /** Get the {@link Match} entries for all matches of this clause. */
     public List<Match> getAllMatches(Clause clause) {
-        return memoTable.get(clause).entrySet().stream().map(Entry::getValue).collect(Collectors.toList());
+        var matches = new ArrayList<Match>();
+        getNavigableMatches(clause).entrySet().stream().forEach(ent -> matches.add(ent.getValue()));
+        return matches;
     }
 
     /**
@@ -158,21 +211,15 @@ public class MemoTable {
      * from the beginning of the string, then looking for the next match after the end of the current match.
      */
     public List<Match> getNonOverlappingMatches(Clause clause) {
-        var clauseMatches = memoTable.get(clause);
-        var firstEntry = clauseMatches.firstEntry();
+        var matches = getAllMatches(clause);
         var nonoverlappingMatches = new ArrayList<Match>();
-        if (firstEntry != null) {
-            // If there was at least one memo entry
-            for (var ent = firstEntry; ent != null;) {
-                var startPos = ent.getKey();
-                var match = ent.getValue();
-                // Store match
-                nonoverlappingMatches.add(match);
-                // Start looking for a new match in the memo table after the end of the previous match.
-                // Need to consume at least one character per match to avoid getting stuck in an infinite loop,
-                // hence the Math.max(1, X) term. Have to subtract 1, because higherEntry() starts searching
-                // at a position one greater than its parameter value.
-                ent = clauseMatches.higherEntry(startPos + Math.max(1, match.len) - 1);
+        for (int i = 0; i < matches.size(); i++) {
+            var match = matches.get(i);
+            var startPos = match.memoKey.startPos;
+            var endPos = startPos + match.len;
+            nonoverlappingMatches.add(match);
+            while (i < matches.size() - 1 && matches.get(i + 1).memoKey.startPos < endPos) {
+                i++;
             }
         }
         return nonoverlappingMatches;
@@ -182,8 +229,7 @@ public class MemoTable {
      * Get any syntax errors in the parse, as a map from start position to a tuple, (end position, span of input
      * string between start position and end position).
      */
-    public NavigableMap<Integer, Entry<Integer, String>> getSyntaxErrors(Grammar grammar, String input,
-            String... syntaxCoverageRuleNames) {
+    public NavigableMap<Integer, Entry<Integer, String>> getSyntaxErrors(String... syntaxCoverageRuleNames) {
         // Find the range of characters spanned by matches for each of the coverageRuleNames
         var parsedRanges = new IntervalUnion();
         for (var coverageRuleName : syntaxCoverageRuleNames) {

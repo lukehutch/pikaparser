@@ -39,9 +39,11 @@ import java.util.TreeMap;
 
 import pikaparser.ast.ASTNode;
 import pikaparser.clause.Clause;
+import pikaparser.clause.nonterminal.Seq;
 import pikaparser.clause.terminal.Terminal;
 import pikaparser.grammar.Grammar;
 import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 
 /** Utility methods for printing information about the result of a parse. */
@@ -57,13 +59,13 @@ public class ParserInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Print the memo table. */
-    public static void printMemoTable(List<Clause> allClauses, MemoTable memoTable, String input) {
-        StringBuilder[] buf = new StringBuilder[allClauses.size()];
+    public static void printMemoTable(MemoTable memoTable) {
+        StringBuilder[] buf = new StringBuilder[memoTable.grammar.allClauses.size()];
         int marginWidth = 0;
-        for (int i = 0; i < allClauses.size(); i++) {
+        for (int i = 0; i < memoTable.grammar.allClauses.size(); i++) {
             buf[i] = new StringBuilder();
-            buf[i].append(String.format("%3d", allClauses.size() - 1 - i) + " : ");
-            Clause clause = allClauses.get(allClauses.size() - 1 - i);
+            buf[i].append(String.format("%3d", memoTable.grammar.allClauses.size() - 1 - i) + " : ");
+            Clause clause = memoTable.grammar.allClauses.get(memoTable.grammar.allClauses.size() - 1 - i);
             if (clause instanceof Terminal) {
                 buf[i].append("[terminal] ");
             }
@@ -73,8 +75,8 @@ public class ParserInfo {
             buf[i].append(clause.toStringWithRuleNames());
             marginWidth = Math.max(marginWidth, buf[i].length() + 2);
         }
-        int tableWidth = marginWidth + input.length() + 1;
-        for (int i = 0; i < allClauses.size(); i++) {
+        int tableWidth = marginWidth + memoTable.input.length() + 1;
+        for (int i = 0; i < memoTable.grammar.allClauses.size(); i++) {
             while (buf[i].length() < marginWidth) {
                 buf[i].append(' ');
             }
@@ -82,26 +84,34 @@ public class ParserInfo {
                 buf[i].append('-');
             }
         }
-        for (int i = 0; i < allClauses.size(); i++) {
-            Clause clause = allClauses.get(allClauses.size() - 1 - i);
-            // Render matches
-            for (var match : memoTable.getNonOverlappingMatches(clause)) {
-                if (match.memoKey.startPos <= input.length()) {
-                    buf[i].setCharAt(marginWidth + match.memoKey.startPos, '#');
-                    for (int j = match.memoKey.startPos + 1; j < match.memoKey.startPos + match.len; j++) {
-                        if (j <= input.length()) {
-                            buf[i].setCharAt(marginWidth + j, '=');
+
+        var nonOverlappingMatches = memoTable.getAllNonOverlappingMatches();
+        for (var clauseIdx = memoTable.grammar.allClauses.size() - 1; clauseIdx >= 0; --clauseIdx) {
+            var row = memoTable.grammar.allClauses.size() - 1 - clauseIdx;
+            var clause = memoTable.grammar.allClauses.get(clauseIdx);
+            var matchesForClause = nonOverlappingMatches.get(clause);
+            if (matchesForClause != null) {
+                for (var matchEnt : matchesForClause.entrySet()) {
+                    var match = matchEnt.getValue();
+                    var matchStartPos = match.memoKey.startPos;
+                    var matchEndPos = matchStartPos + match.len;
+                    if (matchStartPos <= memoTable.input.length()) {
+                        buf[row].setCharAt(marginWidth + matchStartPos, '#');
+                        for (int j = matchStartPos + 1; j < matchEndPos; j++) {
+                            if (j <= memoTable.input.length()) {
+                                buf[row].setCharAt(marginWidth + j, '=');
+                            }
                         }
                     }
                 }
             }
-            System.out.println(buf[i]);
+            System.out.println(buf[row]);
         }
 
         for (int j = 0; j < marginWidth; j++) {
             System.out.print(' ');
         }
-        for (int i = 0; i < input.length(); i++) {
+        for (int i = 0; i < memoTable.input.length(); i++) {
             System.out.print(i % 10);
         }
         System.out.println();
@@ -109,7 +119,7 @@ public class ParserInfo {
         for (int i = 0; i < marginWidth; i++) {
             System.out.print(' ');
         }
-        System.out.println(StringUtils.replaceNonASCII(input));
+        System.out.println(StringUtils.replaceNonASCII(memoTable.input));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -144,8 +154,8 @@ public class ParserInfo {
     }
 
     /** Print the parse tree in memo table form. */
-    public static void printParseTreeInMemoTableForm(Grammar grammar, MemoTable memoTable, String input) {
-        if (grammar.allClauses.size() == 0) {
+    public static void printParseTreeInMemoTableForm(MemoTable memoTable) {
+        if (memoTable.grammar.allClauses.size() == 0) {
             throw new IllegalArgumentException("Grammar is empty");
         }
 
@@ -156,20 +166,25 @@ public class ParserInfo {
         // Input spanned by matches found so far
         var inputSpanned = new IntervalUnion();
 
-        // Get all nonoverlapping matches of the toplevel rule.
+        // Get all nonoverlapping matches rules, top-down.
+        var nonOverlappingMatches = memoTable.getAllNonOverlappingMatches();
         var maxCycleDepth = 0;
-        for (var clauseIdx = grammar.allClauses.size() - 1; clauseIdx >= 0; --clauseIdx) {
-            var clause = grammar.allClauses.get(clauseIdx);
-            for (var match : memoTable.getNonOverlappingMatches(clause)) {
-                var matchStartPos = match.memoKey.startPos;
-                var matchEndPos = matchStartPos + match.len;
-                // Only add parse tree to chart if it doesn't overlap with input spanned by a higher-level match
-                if (!inputSpanned.rangeOverlaps(matchStartPos, matchEndPos)) {
-                    // Pack matches into the lowest cycle they will fit into
-                    var cycleDepth = findCycleDepth(match, cycleDepthToMatches);
-                    maxCycleDepth = Math.max(maxCycleDepth, cycleDepth);
-                    // Add the range spanned by this match
-                    inputSpanned.addRange(matchStartPos, matchEndPos);
+        for (var clauseIdx = memoTable.grammar.allClauses.size() - 1; clauseIdx >= 0; --clauseIdx) {
+            var clause = memoTable.grammar.allClauses.get(clauseIdx);
+            var matchesForClause = nonOverlappingMatches.get(clause);
+            if (matchesForClause != null) {
+                for (var matchEnt : matchesForClause.entrySet()) {
+                    var match = matchEnt.getValue();
+                    var matchStartPos = match.memoKey.startPos;
+                    var matchEndPos = matchStartPos + match.len;
+                    // Only add parse tree to chart if it doesn't overlap with input spanned by a higher-level match
+                    if (!inputSpanned.rangeOverlaps(matchStartPos, matchEndPos)) {
+                        // Pack matches into the lowest cycle they will fit into
+                        var cycleDepth = findCycleDepth(match, cycleDepthToMatches);
+                        maxCycleDepth = Math.max(maxCycleDepth, cycleDepth);
+                        // Add the range spanned by this match
+                        inputSpanned.addRange(matchStartPos, matchEndPos);
+                    }
                 }
             }
         }
@@ -179,7 +194,7 @@ public class ParserInfo {
         List<Clause> clauseForRow = new ArrayList<>();
         for (var matchesForDepth : cycleDepthToMatches.values()) {
             for (var matchesForClauseIdxEnt : matchesForDepth.entrySet()) {
-                clauseForRow.add(grammar.allClauses.get(matchesForClauseIdxEnt.getKey()));
+                clauseForRow.add(memoTable.grammar.allClauses.get(matchesForClauseIdxEnt.getKey()));
                 matchesForRow.add(matchesForClauseIdxEnt.getValue());
             }
         }
@@ -218,7 +233,7 @@ public class ParserInfo {
         }
         var edgeMarkers = new StringBuilder();
         edgeMarkers.append(' ');
-        for (int i = 1, ii = input.length() * 2; i < ii; i++) {
+        for (int i = 1, ii = memoTable.input.length() * 2; i < ii; i++) {
             edgeMarkers.append('░');
         }
         // Append one char for last column boundary, and two extra chars for zero-length matches past end of string
@@ -263,7 +278,8 @@ public class ParserInfo {
                 edgeMarkers.setCharAt(startIdx * 2, '│');
                 edgeMarkers.setCharAt(endIdx * 2, '│');
                 for (int i = startIdx * 2 + 1, ii = endIdx * 2; i < ii; i++) {
-                    if (edgeMarkers.charAt(i) == '░') {
+                    var c = edgeMarkers.charAt(i);
+                    if (c == '░' || c == '│') {
                         edgeMarkers.setCharAt(i, ' ');
                     }
                 }
@@ -275,7 +291,7 @@ public class ParserInfo {
                 var startIdx = match.memoKey.startPos;
                 var endIdx = startIdx + match.len;
                 for (int i = startIdx; i < endIdx; i++) {
-                    rowTreeChars.setCharAt(i * 2 + 1, StringUtils.replaceNonASCII(input.charAt(i)));
+                    rowTreeChars.setCharAt(i * 2 + 1, StringUtils.replaceNonASCII(memoTable.input.charAt(i)));
                 }
             }
             for (var zeroLenMatchIdx : zeroLenMatchIdxs) {
@@ -290,7 +306,7 @@ public class ParserInfo {
             System.out.print(' ');
         }
         System.out.print(' ');
-        for (int i = 0; i < input.length(); i++) {
+        for (int i = 0; i < memoTable.input.length(); i++) {
             System.out.print(i % 10);
             System.out.print(' ');
         }
@@ -301,8 +317,8 @@ public class ParserInfo {
             System.out.print(' ');
         }
         System.out.print(' ');
-        for (int i = 0; i < input.length(); i++) {
-            System.out.print(StringUtils.replaceNonASCII(input.charAt(i)));
+        for (int i = 0; i < memoTable.input.length(); i++) {
+            System.out.print(StringUtils.replaceNonASCII(memoTable.input.charAt(i)));
             System.out.print(' ');
         }
         System.out.println();
@@ -327,88 +343,131 @@ public class ParserInfo {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** Print matches in the memo table for a given clause. */
+    public static void printMatches(Clause clause, MemoTable memoTable, boolean showAllMatches) {
+        var matches = memoTable.getAllMatches(clause);
+        if (!matches.isEmpty()) {
+            System.out.println("\n====================================\n\nMatches for "
+                    + clause.toStringWithRuleNames() + " :");
+            // Get toplevel AST node label(s), if present
+            String astNodeLabel = "";
+            if (clause.rules != null) {
+                for (var rule : clause.rules) {
+                    if (rule.labeledClause.astNodeLabel != null) {
+                        if (!astNodeLabel.isEmpty()) {
+                            astNodeLabel += ":";
+                        }
+                        astNodeLabel += rule.labeledClause.astNodeLabel;
+                    }
+                }
+            }
+            var prevEndPos = -1;
+            for (int j = 0; j < matches.size(); j++) {
+                var match = matches.get(j);
+                // Indent matches that overlap with previous longest match
+                var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
+                if (!overlapsPrevMatch || showAllMatches) {
+                    var indent = overlapsPrevMatch ? "    " : "";
+                    var buf = new StringBuilder();
+                    TreeUtils.renderTreeView(match, astNodeLabel.isEmpty() ? null : astNodeLabel, memoTable.input,
+                            indent, true, buf);
+                    System.out.println(buf.toString());
+                }
+                int newEndPos = match.memoKey.startPos + match.len;
+                if (newEndPos > prevEndPos) {
+                    prevEndPos = newEndPos;
+                }
+            }
+        } else {
+            System.out.println(
+                    "\n====================================\n\nNo matches for " + clause.toStringWithRuleNames());
+        }
+    }
+
+    /** Print matches in the memo table for a given clause and its subclauses. */
+    public static void printMatchesAndSubClauseMatches(Clause clause, MemoTable memoTable) {
+        printMatches(clause, memoTable, true);
+        for (int i = 0; i < clause.labeledSubClauses.length; i++) {
+            printMatches(clause.labeledSubClauses[i].clause, memoTable, true);
+        }
+    }
+
+    /**
+     * Print matches in the memo table for a given Seq clause and its subclauses, including partial matches of the
+     * Seq.
+     */
+    public static void printMatchesAndPartialMatches(Seq seqClause, MemoTable memoTable) {
+        var numSubClauses = seqClause.labeledSubClauses.length;
+        for (var subClause0Match : memoTable.getAllMatches(seqClause.labeledSubClauses[0].clause)) {
+            var subClauseMatches = new ArrayList<Match>();
+            subClauseMatches.add(subClause0Match);
+            var currStartPos = subClause0Match.memoKey.startPos + subClause0Match.len;
+            for (var i = 1; i < numSubClauses; i++) {
+                var subClauseIMatch = memoTable
+                        .lookUpBestMatch(new MemoKey(seqClause.labeledSubClauses[i].clause, currStartPos));
+                if (subClauseIMatch == null) {
+                    break;
+                }
+                subClauseMatches.add(subClauseIMatch);
+            }
+            System.out.println("\n====================================\n\nMatched "
+                    + (subClauseMatches.size() == numSubClauses ? "all subclauses"
+                            : subClauseMatches.size() + " out of " + numSubClauses + " subclauses")
+                    + " of clause (" + seqClause + ") at start pos " + subClause0Match.memoKey.startPos);
+            System.out.println();
+            for (int i = 0; i < subClauseMatches.size(); i++) {
+                var subClauseMatch = subClauseMatches.get(i);
+                var buf = new StringBuilder();
+                TreeUtils.renderTreeView(subClauseMatch, seqClause.labeledSubClauses[i].astNodeLabel,
+                        memoTable.input, "", true, buf);
+                System.out.println(buf.toString());
+            }
+        }
+    }
+
+    /** Print the AST for a given clause. */
+    public static void printAST(String astNodeLabel, Clause clause, MemoTable memoTable) {
+        var matches = memoTable.getNonOverlappingMatches(clause);
+        for (int i = 0; i < matches.size(); i++) {
+            var match = matches.get(i);
+            var ast = new ASTNode(astNodeLabel, match, memoTable.input);
+            System.out.println(ast.toString());
+        }
+    }
+
     /** Summarize a parsing result. */
-    public static void printParseResult(String topLevelRuleName, Grammar grammar, MemoTable memoTable, String input,
+    public static void printParseResult(String topLevelRuleName, MemoTable memoTable,
             String[] syntaxCoverageRuleNames, boolean showAllMatches) {
         System.out.println();
         System.out.println("Clauses:");
-        printClauses(grammar);
+        printClauses(memoTable.grammar);
 
         System.out.println();
         System.out.println("Memo Table:");
-        printMemoTable(grammar.allClauses, memoTable, input);
+        printMemoTable(memoTable);
 
         // Print memo table
         System.out.println();
         System.out.println("Match tree for rule " + topLevelRuleName + ":");
-        printParseTreeInMemoTableForm(grammar, memoTable, input);
+        printParseTreeInMemoTableForm(memoTable);
 
         // Print all matches for each clause
-        for (var i = grammar.allClauses.size() - 1; i >= 0; --i) {
-            var clause = grammar.allClauses.get(i); 
-            var matches = memoTable.getAllMatches(clause);
-            if (!matches.isEmpty()) {
-                System.out.println("\n====================================\n\nMatches for "
-                        + clause.toStringWithRuleNames() + " :");
-                // Get toplevel AST node label(s), if present
-                String astNodeLabel = "";
-                if (clause.rules != null) {
-                    for (var rule : clause.rules) {
-                        if (rule.labeledClause.astNodeLabel != null) {
-                            if (!astNodeLabel.isEmpty()) {
-                                astNodeLabel += ":";
-                            }
-                            astNodeLabel += rule.labeledClause.astNodeLabel;
-                        }
-                    }
-                }
-                var prevEndPos = -1;
-                for (int j = 0; j < matches.size(); j++) {
-                    var match = matches.get(j);
-                    // Indent matches that overlap with previous longest match
-                    var overlapsPrevMatch = match.memoKey.startPos < prevEndPos;
-                    if (!overlapsPrevMatch || showAllMatches) {
-                        var indent = overlapsPrevMatch ? "    " : "";
-                        var buf = new StringBuilder();
-                        TreeUtils.renderTreeView(match, astNodeLabel.isEmpty() ? null : astNodeLabel, input, indent,
-                                true, buf);
-                        System.out.println(buf.toString());
-                    }
-                    int newEndPos = match.memoKey.startPos + match.len;
-                    if (newEndPos > prevEndPos) {
-                        prevEndPos = newEndPos;
-                    }
-                }
-            }
+        for (var i = memoTable.grammar.allClauses.size() - 1; i >= 0; --i) {
+            var clause = memoTable.grammar.allClauses.get(i);
+            printMatches(clause, memoTable, showAllMatches);
         }
 
-        var topLevelRule = grammar.ruleNameWithPrecedenceToRule.get(topLevelRuleName);
-        if (topLevelRule != null) {
-            var topLevelRuleClause = topLevelRule.labeledClause.clause;
-            var topLevelMatches = memoTable.getNonOverlappingMatches(topLevelRuleClause);
-            if (!topLevelMatches.isEmpty()) {
-                System.out.println("\n====================================\n\nFinal AST for rule \""
-                        + topLevelRuleName + "\":");
-                var topLevelRuleASTNodeLabel = topLevelRule.labeledClause.astNodeLabel;
-                if (topLevelRuleASTNodeLabel == null) {
-                    topLevelRuleASTNodeLabel = "<root>";
-                }
-                for (int i = 0; i < topLevelMatches.size(); i++) {
-                    var topLevelMatch = topLevelMatches.get(i);
-                    var ast = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatch, input);
-                    if (ast != null) {
-                        System.out.println();
-                        System.out.println(ast.toString());
-                    }
-                }
-            } else {
-                System.out.println("\nToplevel rule \"" + topLevelRuleName + "\" did not match anything");
-            }
+        var rule = memoTable.grammar.ruleNameWithPrecedenceToRule.get(topLevelRuleName);
+        if (rule != null) {
+            System.out.println(
+                    "\n====================================\n\nAST for rule \"" + topLevelRuleName + "\":\n");
+            var ruleClause = rule.labeledClause.clause;
+            printAST(topLevelRuleName, ruleClause, memoTable);
         } else {
-            System.out.println("\nToplevel rule \"" + topLevelRuleName + "\" does not exist");
+            System.out.println("\nRule \"" + topLevelRuleName + "\" does not exist");
         }
 
-        var syntaxErrors = memoTable.getSyntaxErrors(grammar, input, syntaxCoverageRuleNames);
+        var syntaxErrors = memoTable.getSyntaxErrors(syntaxCoverageRuleNames);
         if (!syntaxErrors.isEmpty()) {
             printSyntaxErrors(syntaxErrors);
         }
