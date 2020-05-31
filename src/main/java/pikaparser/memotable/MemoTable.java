@@ -59,9 +59,6 @@ public class MemoTable {
     /** The input string. */
     public String input;
 
-    /** The priority queue. */
-    private PriorityQueue<Clause> priorityQueue;
-
     // -------------------------------------------------------------------------------------------------------------
 
     /** The number of {@link Match} instances created. */
@@ -74,10 +71,9 @@ public class MemoTable {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    public MemoTable(Grammar grammar, String input, PriorityQueue<Clause> priorityQueue) {
+    public MemoTable(Grammar grammar, String input) {
         this.grammar = grammar;
         this.input = input;
-        this.priorityQueue = priorityQueue;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -110,7 +106,7 @@ public class MemoTable {
      * Add a new {@link Match} to the memo table, if the match is non-null. Schedule seed parent clauses for
      * matching if the match is non-null or if the parent clause can match zero characters.
      */
-    public void addMatch(MemoKey memoKey, Match newMatch) {
+    public void addMatch(MemoKey memoKey, Match newMatch, PriorityQueue<Clause> priorityQueue) {
         var matchUpdated = false;
         if (newMatch != null) {
             // Track memoization
@@ -132,7 +128,8 @@ public class MemoTable {
                 }
             }
         }
-        for (var seedParentClause : memoKey.clause.seedParentClauses) {
+        for (int i = 0, ii = memoKey.clause.seedParentClauses.size(); i < ii; i++) {
+            var seedParentClause = memoKey.clause.seedParentClauses.get(i);
             // If there was a valid match, or if there was no match but the parent clause can match
             // zero characters, schedule the parent clause for matching. (This is part of the strategy
             // for minimizing the number of zero-length matches that are memoized.)

@@ -29,6 +29,8 @@
 //
 package pikaparser.clause.nonterminal;
 
+import java.util.HashSet;
+
 import pikaparser.clause.Clause;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
@@ -48,8 +50,8 @@ public class Seq extends Clause {
         // For Seq, all subclauses must be able to match zero characters for the whole clause to
         // be able to match zero characters
         canMatchZeroChars = true;
-        for (var subClause : labeledSubClauses) {
-            if (!subClause.clause.canMatchZeroChars) {
+        for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
+            if (!labeledSubClauses[subClauseIdx].clause.canMatchZeroChars) {
                 canMatchZeroChars = false;
                 break;
             }
@@ -60,9 +62,14 @@ public class Seq extends Clause {
     public void addAsSeedParentClause() {
         // All sub-clauses up to and including the first clause that matches one or more characters
         // needs to seed its parent clause if there is a subclause match
-        for (var labeledSubClause : labeledSubClauses) {
-            labeledSubClause.clause.seedParentClauses.add(this);
-            if (!labeledSubClause.clause.canMatchZeroChars) {
+        var added = new HashSet<>();
+        for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
+            var subClause = labeledSubClauses[subClauseIdx].clause;
+            // Don't duplicate seed parent clauses in the subclause
+            if (added.add(subClause)) {
+                subClause.seedParentClauses.add(this);
+            }
+            if (!subClause.canMatchZeroChars) {
                 // Don't need to any subsequent subclauses to seed this parent clause
                 break;
             }

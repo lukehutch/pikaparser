@@ -32,7 +32,6 @@ package pikaparser.clause;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import pikaparser.ast.LabeledClause;
@@ -54,7 +53,7 @@ public abstract class Clause {
     public List<Rule> rules;
 
     /** The parent clauses of this clause that should be matched in the same start position. */
-    public final Set<Clause> seedParentClauses = new HashSet<>();
+    public List<Clause> seedParentClauses = new ArrayList<>();
 
     /** If true, the clause can match while consuming zero characters. */
     public boolean canMatchZeroChars;
@@ -112,8 +111,12 @@ public abstract class Clause {
     /** Find which subclauses need to add this clause as a "seed parent clause". Overridden in {@link Seq}. */
     public void addAsSeedParentClause() {
         // Default implementation: all subclauses will seed this parent clause.
+        var added = new HashSet<>();
         for (var labeledSubClause : labeledSubClauses) {
-            labeledSubClause.clause.seedParentClauses.add(this);
+            // Don't duplicate seed parent clauses in the subclause
+            if (added.add(labeledSubClause.clause)) {
+                labeledSubClause.clause.seedParentClauses.add(this);
+            }
         }
     }
 

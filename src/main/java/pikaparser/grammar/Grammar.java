@@ -159,7 +159,7 @@ public class Grammar {
     public MemoTable parse(String input) {
         var priorityQueue = new PriorityQueue<Clause>((c1, c2) -> c1.clauseIdx - c2.clauseIdx);
 
-        var memoTable = new MemoTable(this, input, priorityQueue);
+        var memoTable = new MemoTable(this, input);
 
         var terminals = allClauses.stream().filter(clause -> clause instanceof Terminal
                 // Don't match Nothing everywhere -- it always matches
@@ -174,7 +174,7 @@ public class Grammar {
                 var clause = priorityQueue.remove();
                 var memoKey = new MemoKey(clause, startPos);
                 var match = clause.match(memoTable, memoKey, input);
-                memoTable.addMatch(memoKey, match);
+                memoTable.addMatch(memoKey, match, priorityQueue);
             }
         }
         return memoTable;

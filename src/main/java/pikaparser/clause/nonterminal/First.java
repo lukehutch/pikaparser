@@ -45,15 +45,16 @@ public class First extends Clause {
 
     @Override
     public void determineWhetherCanMatchZeroChars() {
-        for (int i = 0; i < labeledSubClauses.length; i++) {
+        for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
             // Up to one subclause of a First clause can match zero characters, and if present,
             // the subclause that can match zero characters must be the last subclause
-            if (labeledSubClauses[i].clause.canMatchZeroChars) {
+            if (labeledSubClauses[subClauseIdx].clause.canMatchZeroChars) {
                 canMatchZeroChars = true;
-                if (i < labeledSubClauses.length - 1) {
-                    throw new IllegalArgumentException("Subclause " + i + " of " + First.class.getSimpleName()
-                            + " can match zero characters, which means subsequent subclauses will never be "
-                            + "matched: " + this);
+                if (subClauseIdx < labeledSubClauses.length - 1) {
+                    throw new IllegalArgumentException(
+                            "Subclause " + subClauseIdx + " of " + First.class.getSimpleName()
+                                    + " can match zero characters, which means subsequent subclauses will never be "
+                                    + "matched: " + this);
                 }
                 break;
             }
@@ -63,8 +64,8 @@ public class First extends Clause {
     @Override
     public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
         for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
-            var labeledSubClause = labeledSubClauses[subClauseIdx];
-            var subClauseMemoKey = new MemoKey(labeledSubClause.clause, memoKey.startPos);
+            var subClause = labeledSubClauses[subClauseIdx].clause;
+            var subClauseMemoKey = new MemoKey(subClause, memoKey.startPos);
             var subClauseMatch = memoTable.lookUpBestMatch(subClauseMemoKey);
             if (subClauseMatch != null) {
                 // Return a match for the first matching subclause
