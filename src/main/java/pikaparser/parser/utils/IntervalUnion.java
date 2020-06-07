@@ -102,18 +102,28 @@ public class IntervalUnion {
 
     /** Return true if the specified range overlaps with any range in this interval union. */
     public boolean rangeOverlaps(int startPos, int endPos) {
+        // Range overlap test: https://stackoverflow.com/a/25369187/3950982
+        // (Need to repeat for both floor entry and ceiling entry)
         var floorEntry = nonOverlappingRanges.floorEntry(startPos);
-        var ceilingEntry = nonOverlappingRanges.ceilingEntry(endPos);
-
-        if (floorEntry != null && ceilingEntry != null) {
+        if (floorEntry != null) {
             var floorEntryStart = floorEntry.getKey();
-            var ceilingEntryEnd = ceilingEntry.getValue();
-            if (floorEntryStart != null && ceilingEntryEnd != null) {
-                return (startPos < ceilingEntryEnd) && (endPos > floorEntryStart);
+            var floorEntryEnd = floorEntry.getValue();
+            if (Math.max(endPos, floorEntryEnd) - Math.min(startPos, floorEntryStart) < (endPos - startPos)
+                    + (floorEntryEnd - floorEntryStart)) {
+                return true;
+            }
+        }
+        var ceilEntry = nonOverlappingRanges.ceilingEntry(startPos);
+        if (ceilEntry != null) {
+            var ceilEntryStart = ceilEntry.getKey();
+            var ceilEntryEnd = ceilEntry.getValue();
+            if (Math.max(endPos, ceilEntryEnd) - Math.min(startPos, ceilEntryStart) < (endPos - startPos)
+                    + (ceilEntryEnd - ceilEntryStart)) {
+                return true;
             }
         }
         return false;
-     }
+    }
 
     /** Return all the nonoverlapping ranges in this interval union. */
     public NavigableMap<Integer, Integer> getNonOverlappingRanges() {
