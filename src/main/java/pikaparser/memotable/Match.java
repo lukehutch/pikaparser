@@ -100,7 +100,8 @@ public class Match {
                 subClauseMatchesToUse.add(new SimpleEntry<>(curr.memoKey.clause.labeledSubClauses[0].astNodeLabel,
                         curr.subClauseMatches[0]));
                 if (curr.subClauseMatches.length == 1) {
-                    // Reached end of right-recursive matches
+                    // The last element of the right-recursive list will have a single element, i.e. (head),
+                    // rather than two elements, i.e. (head, tail) -- see the OneOrMore.match method
                     break;
                 }
             }

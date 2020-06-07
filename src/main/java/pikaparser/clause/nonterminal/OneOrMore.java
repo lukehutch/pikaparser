@@ -64,10 +64,10 @@ public class OneOrMore extends Clause {
 
         // Return a new (right-recursive) match
         return tailMatch == null //
-                // There is only one match
+                // There is only one match => match has only one subclause
                 ? new Match(memoKey, /* len = */ subClauseMatch.len, //
                         new Match[] { subClauseMatch })
-                // There are two or more matches
+                // There are two or more matches => match has two subclauses (head, tail)
                 : new Match(memoKey, /* len = */ subClauseMatch.len + tailMatch.len, //
                         new Match[] { subClauseMatch, tailMatch });
     }
