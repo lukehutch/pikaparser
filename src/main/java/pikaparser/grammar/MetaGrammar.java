@@ -387,7 +387,7 @@ public class MetaGrammar {
     }
 
     /** Parse a rule in the AST, returning a new {@link Rule}. */
-    private static Rule parseRule(ASTNode ruleNode, String input) {
+    private static Rule parseRule(ASTNode ruleNode) {
         String ruleName = ruleNode.getFirstChild().getText();
         var hasPrecedence = ruleNode.children.size() > 2;
         var associativity = ruleNode.children.size() < 4 ? null
@@ -448,7 +448,7 @@ public class MetaGrammar {
             if (!astNode.label.equals(RULE_AST)) {
                 throw new IllegalArgumentException("Wrong node type");
             }
-            Rule rule = parseRule(astNode, input);
+            Rule rule = parseRule(astNode);
             rules.add(rule);
         }
         return new Grammar(rules);
