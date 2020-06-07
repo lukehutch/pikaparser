@@ -85,7 +85,7 @@ public class Match {
 
     /**
      * Get subclause matches. Automatically flattens the right-recursive structure of {@link OneOrMore} nodes,
-     * collecting the subclause matches into a single array of (AST node label, match) tuples.
+     * collecting the subclause matches into a single array of (AST node label, subclause match) tuples.
      * 
      * @return A list of tuples: (AST node label, subclause match).
      */
