@@ -96,7 +96,7 @@ public class Match {
         if (memoKey.clause instanceof OneOrMore) {
             // Flatten right-recursive structure of OneOrMore parse subtree
             var subClauseMatchesToUse = new ArrayList<Entry<String, Match>>();
-            for (Match curr = this; curr.subClauseMatches.length > 0; curr = curr.subClauseMatches[1]) {
+            for (var curr = this; curr.subClauseMatches.length > 0; curr = curr.subClauseMatches[1]) {
                 subClauseMatchesToUse.add(new SimpleEntry<>(curr.memoKey.clause.labeledSubClauses[0].astNodeLabel,
                         curr.subClauseMatches[0]));
                 if (curr.subClauseMatches.length == 1) {
