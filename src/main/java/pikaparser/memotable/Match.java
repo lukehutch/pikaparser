@@ -48,7 +48,7 @@ public class Match {
 
     /** The length of the match. */
     public final int len;
-    
+
     /**
      * The subclause index of the first matching subclause (will be 0 unless {@link #labeledClause} is a
      * {@link First}, and the matching clause was not the first subclause).
@@ -96,7 +96,8 @@ public class Match {
         if (memoKey.clause instanceof OneOrMore) {
             // Flatten right-recursive structure of OneOrMore parse subtree
             var subClauseMatchesToUse = new ArrayList<Entry<String, Match>>();
-            for (var curr = this; curr.subClauseMatches.length > 0; curr = curr.subClauseMatches[1]) {
+            for (var curr = this; curr.subClauseMatches.length > 0;) {
+                // Add head of right-recursive list to arraylist, paired with its AST node label, if present
                 subClauseMatchesToUse.add(new SimpleEntry<>(curr.memoKey.clause.labeledSubClauses[0].astNodeLabel,
                         curr.subClauseMatches[0]));
                 if (curr.subClauseMatches.length == 1) {
@@ -104,6 +105,8 @@ public class Match {
                     // rather than two elements, i.e. (head, tail) -- see the OneOrMore.match method
                     break;
                 }
+                // Move to tail of list
+                curr = curr.subClauseMatches[1];
             }
             return subClauseMatchesToUse;
         } else if (memoKey.clause instanceof First) {
