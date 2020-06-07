@@ -396,7 +396,7 @@ public class MetaGrammar {
         int precedence = hasPrecedence ? Integer.parseInt(ruleNode.getSecondChild().getText()) : -1;
         if (hasPrecedence && precedence < 0) {
             throw new IllegalArgumentException("Precedence needs to be zero or positive (rule " + ruleName
-                    + " has precence level " + precedence + ")");
+                    + " has precedence level " + precedence + ")");
         }
         var astNode = ruleNode.getChild(ruleNode.children.size() - 1);
         Clause clause = parseASTNode(astNode);
