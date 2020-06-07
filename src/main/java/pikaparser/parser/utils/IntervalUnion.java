@@ -100,6 +100,7 @@ public class IntervalUnion {
         return invertedIntervalSet;
     }
 
+    /** Return true if the specified range overlaps with any range in this interval union. */
     public boolean rangeOverlaps(int startPos, int endPos) {
         var floorEntry = nonOverlappingRanges.floorEntry(startPos);
         var ceilingEntry = nonOverlappingRanges.ceilingEntry(endPos);
