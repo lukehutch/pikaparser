@@ -39,7 +39,6 @@ import java.util.Map.Entry;
 import pikaparser.clause.Clause;
 import pikaparser.clause.nonterminal.First;
 import pikaparser.clause.nonterminal.OneOrMore;
-import pikaparser.clause.nonterminal.Seq;
 
 /** A complete match of a {@link Clause} at a given start position. */
 public class Match {
@@ -85,8 +84,10 @@ public class Match {
     }
 
     /**
-     * Get subclause matches. Automatically flattens the right-recursive structure of {@link OneOrMore} and
-     * {@link Seq} nodes, collecting the subclause matches into a single array of (AST node label, match) tuples.
+     * Get subclause matches. Automatically flattens the right-recursive structure of {@link OneOrMore} nodes,
+     * collecting the subclause matches into a single array of (AST node label, match) tuples.
+     * 
+     * @return A list of tuples: (AST node label, subclause match).
      */
     public List<Entry<String, Match>> getSubClauseMatches() {
         if (subClauseMatches.length == 0) {
