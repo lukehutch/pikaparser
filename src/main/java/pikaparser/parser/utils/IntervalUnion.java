@@ -100,16 +100,19 @@ public class IntervalUnion {
         return invertedIntervalSet;
     }
 
-    /** Return true if the specified range overlaps with any range in this interval union. */
     public boolean rangeOverlaps(int startPos, int endPos) {
         var floorEntry = nonOverlappingRanges.floorEntry(startPos);
-        if (floorEntry == null) {
-            return false;
-        } else {
-            var floorEntryEnd = floorEntry.getValue();
-            return startPos < floorEntryEnd;
+        var ceilingEntry = nonOverlappingRanges.ceilingEntry(endPos);
+
+        if (floorEntry != null && ceilingEntry != null) {
+            var floorEntryStart = floorEntry.getKey();
+            var ceilingEntryEnd = ceilingEntry.getValue();
+            if (floorEntryStart != null && ceilingEntryEnd != null) {
+                return (startPos < ceilingEntryEnd) && (endPos > floorEntryStart);
+            }
         }
-    }
+        return false;
+     }
 
     /** Return all the nonoverlapping ranges in this interval union. */
     public NavigableMap<Integer, Integer> getNonOverlappingRanges() {
