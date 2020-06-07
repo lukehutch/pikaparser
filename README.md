@@ -2,9 +2,9 @@
 
 This is the reference implementation of the pika parsing algorithm, described in the paper:
 
-[Pika parsing: parsing in reverse solves the left recursion and error recovery problems. Luke A. D. Hutchison, May 2020.](https://arxiv.org/abs/2005.06444)
+[Pika parsing: reformulating packrat parsing as a dynamic programming algorithm solves the left recursion and error recovery problems. Luke A. D. Hutchison, May 2020.](https://arxiv.org/abs/2005.06444)
 
-Pika parsing is the inverse of packrat parsing: instead of parsing top-down, left to right, pika parsing parses right to left, bottom-up, using dynamic programming. This reversed parsing order allows the parser to directly handle left-recursive grammars, and allows the parser to optimally recover from syntax errors.
+Pika parsing is the inverse of packrat parsing: instead of parsing top-down, left to right, pika parsing parses bottom-up, right to left, using dynamic programming. This reversed parsing order allows the parser to directly handle left-recursive grammars, and allows the parser to optimally recover from syntax errors.
 
 ## Example usage
 
@@ -13,8 +13,8 @@ Pika parsing is the inverse of packrat parsing: instead of parsing top-down, lef
 ```java
 String grammarSpecFilename = "arithmetic.grammar";
 String inputFilename = "arithmetic.input";
-String topRuleName = "Program";
-String[] recoveryRuleNames = { topRuleName, "Statement" };
+String topLevelRuleName = "Program";
+String[] recoveryRuleNames = { topLevelRuleName, "Statement" };
 
 String grammarSpec = Files.readString(Paths.get(grammarSpecFilename));
 
@@ -24,7 +24,7 @@ String input = Files.readString(Paths.get(inputFilename));
 
 MemoTable memoTable = grammar.parse(input);
 
-ParserInfo.printParseResult(topRuleName, grammar, memoTable, input, recoveryRuleNames, false);
+ParserInfo.printParseResult(topLevelRuleName, memoTable, recoveryRuleNames, false);
 ```
 
 ### Grammar description file: `arithmetic.grammar`
@@ -86,33 +86,30 @@ NavigableMap<Integer, Entry<Integer, String>> syntaxErrors =
         memoTable.getSyntaxErrors(grammar, input, "Program", "Statement", "Expr");
 ```
 
-or similar (list the names of all all the grammar rules that should span all of the input in the last varargs parameter). Any character range that is not spanned by a match of one of the named rules is returned in the result. You can print out the characters in those ranges as syntax errors. The entries in the returned `NavigableMap` have as the key the start position of a syntax error (a zero-indexed character position from the beginning of the string), and as the value an entry consisting of the end position of the syntax error and the span of the input between the start position and the end position.  
+or similar (list the names of all all the grammar rules that should span all of the input in the last varargs parameter). Any character range that is not spanned by a match of one of the named rules is returned in the result as a syntax error. You can print out the characters in those ranges as syntax errors. The entries in the returned `NavigableMap` have as the key the start position of a syntax error (a zero-indexed character position from the beginning of the string), and as the value an entry consisting of the end position of the syntax error and the span of the input between the start position and the end position.  
 
 
 ### Error recovery
 
-You can recover from syntax errors by finding the next match of any grammar rule of interest. For example:
+You can recover from syntax errors by finding the next match of any grammar rule of interest after the syntax error (i.e. after the end of the last character matched by a previous grammar rule). For example:
 
 ```
-NavigableMap<Integer, MemoEntry> programEntries = grammar.getNavigableMatches("Program", memoTable);
+NavigableMap<Integer, Match> programEntries = grammar.getNavigableMatches("Program", memoTable);
 int matchEndPosition = 0;
 if (!programEntries.isEmpty()) {
-    Match bestMatch = programEntries.firstEntry().getValue().bestMatch;
-    if (bestMatch != null) {
-        int startPos = bestMatch.memoKey.startPos;
-        int len = bestMatch.len;
+    Match programMatch = programEntries.firstEntry().getValue();
+    if (programMatch != null) {
+        int startPos = programMatch.memoKey.startPos;
+        int len = programMatch.len;
         matchEndPosition = startPos + len;
-    }    
+    }
 }
 if (matchEndPosition < input.length()) {
-    NavigableMap<Integer, MemoEntry> statementEntries = grammar.getNavigableMatches("Statement", memoTable);
-    MemoEntry nextStatement = statementEntries.ceilingEntry(matchEndPosition);
-    if (nextStatement != null) {
-        Match nextStatementMatch = nextStatement.bestMatch;
-        if (nextStatementMatch != null) {
-            int nextStatementStartPosition = nextStatement.bestMatch.memoKey.startPos;
-            // ...
-        }
+    NavigableMap<Integer, Match> statementEntries = grammar.getNavigableMatches("Statement", memoTable);
+    Entry<Integer, Match> nextStatementEntry = statementEntries.ceilingEntry(matchEndPosition);
+    if (nextStatementEntry!= null) {
+        Match nextStatementMatch = nextStatementEntry.getValue();
+        // ...
     }
 }
 ```
