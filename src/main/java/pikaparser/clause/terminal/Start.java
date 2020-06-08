@@ -5,8 +5,8 @@
 //
 // The pika parsing algorithm is described in the following paper: 
 //
-//     Pika parsing: parsing in reverse solves the left recursion and error recovery problems
-//     Luke A. D. Hutchison, May 2020
+//     Pika parsing: reformulating packrat parsing as a dynamic programming algorithm solves the left recursion
+//     and error recovery problems. Luke A. D. Hutchison, May 2020.
 //     https://arxiv.org/abs/2005.06444
 //
 // This software is provided under the MIT license:
