@@ -1,0 +1,7 @@
+Program <- Statement+;
+Statement <- var:[a-z]+ '=' E ';';
+E[4] <- '(' E ')';
+E[3] <- num:[0-9]+ / sym:[a-z]+;
+E[2] <- arith:(op:'-' E);
+E[1,L] <- arith:(E op:('*' / '/') E);
+E[0,L] <- arith:(E op:('+' / '-') E);
