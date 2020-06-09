@@ -224,7 +224,7 @@ public class MetaGrammar {
             rule(SINGLE_QUOTED_CHAR, //
                     first( //
                             ruleRef(ESCAPED_CTRL_CHAR), //
-                            c('\'', '"').invert())), // TODO: replace invert() with NotFollowedBy
+                            c('\'').invert())), // TODO: replace invert() with NotFollowedBy
 
             // Char range
             rule(CHAR_RANGE, //
