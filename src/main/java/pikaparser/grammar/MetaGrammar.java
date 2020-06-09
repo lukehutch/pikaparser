@@ -309,20 +309,11 @@ public class MetaGrammar {
         return clauses.get(0);
     }
 
-    /** Recursively parse a list of AST nodes. */
+    /** Recursively convert a list of AST nodes into a list of Clauses. */
     private static List<Clause> parseASTNodes(List<ASTNode> astNodes) {
         List<Clause> clauses = new ArrayList<>(astNodes.size());
-        String nextNodeLabel = null;
-        for (int i = 0; i < astNodes.size(); i++) {
-            var astNode = astNodes.get(i);
-            // Create a Clause from the ASTNode
-            var clause = parseASTNode(astNode);
-            if (nextNodeLabel != null) {
-                // Label the Clause with the preceding label, if present
-                clause = ast(nextNodeLabel, clause);
-                nextNodeLabel = null;
-            }
-            clauses.add(clause);
+        for (ASTNode astNode : astNodes) {
+            clauses.add(parseASTNode(astNode));
         }
         return clauses;
     }
