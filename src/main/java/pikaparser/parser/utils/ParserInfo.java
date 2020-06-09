@@ -139,16 +139,14 @@ public class ParserInfo {
             cycleDepth = Math.max(cycleDepth,
                     subClauseIsInDifferentCycle ? subClauseMatchDepth + 1 : subClauseMatchDepth);
         }
-        var matchesForDepth = cycleDepthToMatches.get(cycleDepth);
-        if (matchesForDepth == null) {
-            matchesForDepth = new TreeMap<>(Collections.reverseOrder());
-            cycleDepthToMatches.put(cycleDepth, matchesForDepth);
-        }
-        var matchesForClauseIdx = matchesForDepth.get(match.memoKey.clause.clauseIdx);
-        if (matchesForClauseIdx == null) {
-            matchesForClauseIdx = new TreeMap<>();
-            matchesForDepth.put(match.memoKey.clause.clauseIdx, matchesForClauseIdx);
-        }
+        var matchesForDepth = cycleDepthToMatches.computeIfAbsent(cycleDepth,
+            k -> new TreeMap<>(Collections.reverseOrder())
+        );
+
+        var matchesForClauseIdx = matchesForDepth.computeIfAbsent(match.memoKey.clause.clauseIdx,
+            k -> new TreeMap<>()
+        );
+
         matchesForClauseIdx.put(match.memoKey.startPos, match);
         return cycleDepth;
     }
@@ -234,7 +232,7 @@ public class ParserInfo {
         var edgeMarkers = new StringBuilder();
         edgeMarkers.append(' ');
         for (int i = 1, ii = memoTable.input.length() * 2; i < ii; i++) {
-            edgeMarkers.append('░');
+            edgeMarkers.append('\u2591');
         }
         // Append one char for last column boundary, and two extra chars for zero-length matches past end of string
         edgeMarkers.append("   ");
