@@ -29,14 +29,8 @@
 //
 package pikaparser;
 
-import org.junit.Test;
-import pikaparser.clause.Clause;
-import pikaparser.clause.nonterminal.First;
-import pikaparser.grammar.Grammar;
-import pikaparser.grammar.MetaGrammar;
-import pikaparser.memotable.Match;
-import pikaparser.memotable.MemoTable;
-import pikaparser.parser.utils.ParserInfo;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -45,9 +39,12 @@ import java.nio.file.Paths;
 import java.util.Objects;
 //        import pikaparser.parser.utils.ParserInfo;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import org.junit.Test;
+
+import pikaparser.clause.Clause;
+import pikaparser.grammar.MetaGrammar;
+import pikaparser.memotable.Match;
+import pikaparser.parser.utils.ParserInfo;
 
 public class EndToEndTest {
     private String loadResourceFile(String filename) throws IOException, URISyntaxException {

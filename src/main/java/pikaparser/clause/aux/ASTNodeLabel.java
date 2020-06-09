@@ -29,6 +29,7 @@
 //
 package pikaparser.clause.aux;
 
+import pikaparser.ast.LabeledClause;
 import pikaparser.clause.Clause;
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
