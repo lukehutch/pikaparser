@@ -1,0 +1,42 @@
+// The Java 1.8.peg file included in this project is based on the one for
+// Mouse 1.5 - 1.8 by Roman Redziejowski, with some modifications for the
+// pika parser. The copyright notice is included below, as comments had to
+// be removed from the original version.
+
+//===========================================================================
+//
+//  Parsing Expression Grammar of Java 1.8 for Mouse 1.5 - 1.8.
+//  Based on Java Language Specification, Java SE8 Edition, dated 2014-03-03,
+//  obtained from http://docs.oracle.com/javase/specs/jls/se8/html/index.html
+//  and parser code from openjdk.8b132.2014.03.03.
+//
+//---------------------------------------------------------------------------
+//
+//  Copyright (C) 2014
+//  by Roman R Redziejowski(www.romanredz.se).
+//
+//  The author gives unlimited permission to copy and distribute
+//  this file, with or without modifications, as long as this notice
+//  is preserved, and any changes are properly documented.
+//
+//  This file is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//
+//---------------------------------------------------------------------------
+//
+//  Latest update 2014-12-11
+//
+//---------------------------------------------------------------------------
+//  Change log
+//---------------------------------------------------------------------------
+//
+//    2014-10-27 Posted on Internet.
+//    2014-11-01 Corrected NormalInterfaceDeclaration.
+//    2014-11-02 Corrected title comments to JLS 3.10.1 and 3.10.2.
+//               Replaced SimpleQualIdent by Identifier
+//               in ConstructorDeclarator (JLS 8.8).
+//    2014-12-11 Commented out unused definitions: ArrayAccess, FieldAccess,
+//               ClassInstanceCreationExpression, MethodInvocation.
+//
+//===========================================================================
