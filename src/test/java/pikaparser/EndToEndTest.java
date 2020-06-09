@@ -31,8 +31,12 @@ package pikaparser;
 
 import org.junit.Test;
 import pikaparser.clause.Clause;
+import pikaparser.clause.nonterminal.First;
+import pikaparser.grammar.Grammar;
 import pikaparser.grammar.MetaGrammar;
 import pikaparser.memotable.Match;
+import pikaparser.memotable.MemoTable;
+import pikaparser.parser.utils.ParserInfo;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -61,11 +65,11 @@ public class EndToEndTest {
         final var input = loadResourceFile("arithmetic.input");
         final var memoTable = grammar.parse(input);
 
-        /*
+
         final var topRuleName = "Program";
         final String[] recoveryRuleNames = { topRuleName, "Statement" };
         ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
-         */
+
 
         final var allClauses = memoTable.grammar.allClauses;
         assertThat(allClauses.size(), is(27));
@@ -99,5 +103,25 @@ public class EndToEndTest {
 
         final String subClauseString = firstSubclauseMatchOfLastMatch.getValue().toStringWithRuleNames();
         assertThat(subClauseString, is("Statement <- var:[a-z]+ '=' E ';' : 0+23"));
+    }
+
+    @Test
+    public void can_parse_java_example() throws IOException, URISyntaxException {
+        final var grammarSpec = loadResourceFile("Java.1.8.peg");
+        final var grammar = MetaGrammar.parse(grammarSpec);
+
+        final var input = loadResourceFile("MemoTable.java");
+        final var memoTable = grammar.parse(input);
+
+        final var topRuleName = "Compilation";
+        final String[] recoveryRuleNames = { topRuleName, "CompilationUnit" };
+
+        // Huge output; only do this if you have a big buffer
+        // ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
+
+        final var syntaxErrors = memoTable.getSyntaxErrors(recoveryRuleNames);
+        if (! syntaxErrors.isEmpty()) {
+            ParserInfo.printSyntaxErrors(syntaxErrors);
+        }
     }
 }
