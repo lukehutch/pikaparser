@@ -5,13 +5,10 @@ _ <- [ -~] ;
 SUB <- "\t" ;
 EOT <- !_ ;
 
-Star <- '*' ;
-NonCloseComment <- [^/] / !Star '/' ;
-
 Spacing
     <- ( [ \t\r\n]+
-      / "/*" NonCloseComment* "*/"
-      / "//" [^\r\n]* [\r\n]
+      / "/*" (!"*/" _)* "*/"
+      / "//" (![\r\n] _)*
       )* ;
 
 Identifier  <- !Keyword Letter LetterOrDigit* Spacing ;
