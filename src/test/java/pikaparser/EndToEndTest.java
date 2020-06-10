@@ -29,30 +29,24 @@
 //
 package pikaparser;
 
+import org.junit.Test;
+import pikaparser.clause.Clause;
+import pikaparser.grammar.MetaGrammar;
+import pikaparser.memotable.Match;
+import pikaparser.parser.utils.ParserInfo;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Objects;
 //        import pikaparser.parser.utils.ParserInfo;
 
-import org.junit.Test;
-
-import pikaparser.clause.Clause;
-import pikaparser.grammar.MetaGrammar;
-import pikaparser.memotable.Match;
-import pikaparser.parser.utils.ParserInfo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertThat;
+import static pikaparser.TestUtils.loadResourceFile;
 
 public class EndToEndTest {
-    private String loadResourceFile(String filename) throws IOException, URISyntaxException {
-        final var resource = EndToEndTest.class.getClassLoader().getResource(filename);
-        final var resourceUrl = Objects.requireNonNull(resource).toURI();
-        final var lines = Files.readAllLines(Paths.get(resourceUrl));
-        return String.join("", lines);
-    }
 
     @Test
     public void can_parse_arithmetic_example() throws IOException, URISyntaxException {
