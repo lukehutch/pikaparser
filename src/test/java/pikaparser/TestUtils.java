@@ -40,6 +40,6 @@ public class TestUtils {
         final var resource = EndToEndTest.class.getClassLoader().getResource(filename);
         final var resourceUrl = Objects.requireNonNull(resource).toURI();
         final var lines = Files.readAllLines(Paths.get(resourceUrl));
-        return String.join("", lines);
+        return String.join("\n", lines);
     }
 }
