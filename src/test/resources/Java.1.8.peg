@@ -7,8 +7,8 @@ EOT <- !_ ;
 
 Spacing
     <- ( [ \t\r\n]+
-      / "/*" (!"*/" _)* "*/"
-      / "//" (![\r\n] _)*
+      / "/*" (_ !"*/")* "*/"
+      / "//" (_ ![\r\n])* [\r\n]
       )* ;
 
 Identifier  <- !Keyword Letter LetterOrDigit* Spacing ;
