@@ -142,8 +142,8 @@ public class MemoTable {
             }
         }
         if (Grammar.DEBUG) {
-            System.out.println(
-                    (newMatch != null ? "Matched: " : "Failed to match: ") + memoKey.toStringWithRuleNames());
+            System.out.println(newMatch != null ? "Matched: " + newMatch.toStringWithRuleNames()
+                    : "Failed to match: " + memoKey.toStringWithRuleNames());
         }
     }
 
