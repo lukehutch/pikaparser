@@ -62,7 +62,7 @@ public abstract class Clause {
     public int clauseIdx;
 
     /** The cached result of the {@link #toString()} method. */
-    protected String toStringCached;
+    public String toStringCached;
 
     /** The cached result of the {@link #toStringWithRuleNames()} method. */
     private String toStringWithRuleNameCached;

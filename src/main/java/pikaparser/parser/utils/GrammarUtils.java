@@ -184,7 +184,8 @@ public class GrammarUtils {
 
     /** Rewrite self-references into precedence-climbing form. */
     private static int rewriteSelfReferences(Clause clause, Associativity associativity, int numSelfRefsSoFar,
-            int numSelfRefs, String selfRefRuleName, String currPrecRuleName, String nextHighestPrecRuleName) {
+            int numSelfRefs, String selfRefRuleName, boolean isHighestPrec, String currPrecRuleName,
+            String nextHighestPrecRuleName) {
         // Terminate recursion when all self-refs have been replaced
         if (numSelfRefsSoFar < numSelfRefs) {
             for (int i = 0; i < clause.labeledSubClauses.length; i++) {
@@ -207,20 +208,27 @@ public class GrammarUtils {
                                                             ? currPrecRuleName
                                                             : nextHighestPrecRuleName);
                         } else /* numSelfRefs == 1 */ {
-                            // Move subclause (and its AST node label, if any) inside a First clause that
-                            // climbs precedence to the next level:
-                            // E[i] <- X E Y  =>  E[i] <- X (E[i] / E[(i+1)%N]) Y
-                            ((RuleRef) subClause).refdRuleName = currPrecRuleName;
-                            clause.labeledSubClauses[i].clause = new First(subClause,
-                                    new RuleRef(nextHighestPrecRuleName));
+                            if (!isHighestPrec) {
+                                // Move subclause (and its AST node label, if any) inside a First clause that
+                                // climbs precedence to the next level:
+                                // E[i] <- X E Y  =>  E[i] <- X (E[i] / E[(i+1)%N]) Y
+                                ((RuleRef) subClause).refdRuleName = currPrecRuleName;
+                                clause.labeledSubClauses[i].clause = new First(subClause,
+                                        new RuleRef(nextHighestPrecRuleName));
+                            } else {
+                                // Except for highest precedence, just defer back to lowest-prec level:
+                                // E[N-1] <- '(' E ')'  =>  E[N-1] <- '(' E[0] ')'        
+                                ((RuleRef) subClause).refdRuleName = nextHighestPrecRuleName;
+                            }
                         }
                         numSelfRefsSoFar++;
                     }
                     // Else don't rewrite the RuleRef, it is not a self-ref
                 } else {
                     numSelfRefsSoFar = rewriteSelfReferences(subClause, associativity, numSelfRefsSoFar,
-                            numSelfRefs, selfRefRuleName, currPrecRuleName, nextHighestPrecRuleName);
+                            numSelfRefs, selfRefRuleName, isHighestPrec, currPrecRuleName, nextHighestPrecRuleName);
                 }
+                subClause.toStringCached = null;
             }
         }
         return numSelfRefsSoFar;
@@ -241,7 +249,7 @@ public class GrammarUtils {
         //
         // For highest precedence level, next highest precedence wraps back to lowest precedence level:
         //
-        // E[5] <- '(' E ')'  =>  E[5] <- '(' (E[5] / E[0]) ')'
+        // E[5] <- '(' E ')'  =>  E[5] <- '(' E[0] ')'
 
         // Check there are no duplicate precedence levels
         var precedenceToRule = new TreeMap<Integer, Rule>();
@@ -273,18 +281,19 @@ public class GrammarUtils {
             var nextHighestPrecRuleName = precedenceOrder.get((precedenceIdx + 1) % numPrecedenceLevels).ruleName;
 
             // If a rule has 2+ self-references, and rule is associative, need rewrite rule for associativity
+            var isHighestPrec = precedenceIdx == numPrecedenceLevels - 1;
             if (numSelfRefs >= 1) {
                 // Rewrite self-references to higher precedence or left- and right-recursive forms.
                 // (the toplevel clause of the rule, rule.labeledClause.clause, can't be a self-reference,
                 // since we already checked for that, and IllegalArgumentException would have been thrown.)
                 rewriteSelfReferences(rule.labeledClause.clause, rule.associativity, 0, numSelfRefs,
-                        ruleNameWithoutPrecedence, currPrecRuleName, nextHighestPrecRuleName);
+                        ruleNameWithoutPrecedence, isHighestPrec, currPrecRuleName, nextHighestPrecRuleName);
             }
 
             // Defer to next highest level of precedence if the rule doesn't match, except at the highest level of
             // precedence, which is assumed to be a precedence-breaking pattern (like parentheses), so should not
             // defer back to the lowest precedence level unless the pattern itself matches
-            if (precedenceIdx < numPrecedenceLevels - 1) {
+            if (!isHighestPrec) {
                 // Move rule's toplevel clause (and any AST node label it has) into the first subclause of
                 // a First clause that fails over to the next highest precedence level
                 var first = new First(rule.labeledClause.clause, new RuleRef(nextHighestPrecRuleName));

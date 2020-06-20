@@ -61,7 +61,7 @@ public class Grammar {
     public final List<Clause> allClauses;
 
     /** If true, print verbose debug output. */
-    public static boolean DEBUG = true;
+    public static boolean DEBUG = false;
 
     /** Construct a grammar from a set of rules. */
     public Grammar(List<Rule> rules) {
