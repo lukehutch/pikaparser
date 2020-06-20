@@ -175,7 +175,7 @@ public class ClauseFactory {
                 if (cEnd < c) {
                     throw new IllegalArgumentException("Char range limits out of order: " + c + ", " + cEnd);
                 }
-                chars.set(c, cEnd);
+                chars.set(c, cEnd + 1);
                 i += 2;
             } else {
                 chars.set(c);
