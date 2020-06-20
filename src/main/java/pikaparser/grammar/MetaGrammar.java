@@ -362,12 +362,7 @@ public class MetaGrammar {
             clause = nothing();
             break;
         case CHAR_RANGE_AST:
-            String text = StringUtils.unescapeString(astNode.getText());
-            boolean invert = text.startsWith("^");
-            if (invert) {
-                text = text.substring(1);
-            }
-            clause = invert ? cRange(text).invert() : cRange(text);
+            clause = cRange(StringUtils.unescapeString(astNode.getText()));
             break;
         default:
             // Keep recursing for parens (the only type of AST node that doesn't have a label)

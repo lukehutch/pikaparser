@@ -29,8 +29,7 @@
 //
 package pikaparser.parser.utils;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.BitSet;
 import java.util.Optional;
 
 import pikaparser.clause.Clause;
@@ -168,7 +167,7 @@ public class ClauseFactory {
      */
     public static CharSet cRange(String charRanges) {
         boolean invert = charRanges.startsWith("^");
-        List<CharSet> charSets = new ArrayList<>();
+        var chars = new BitSet(0xffff);
         for (int i = invert ? 1 : 0; i < charRanges.length(); i++) {
             char c = charRanges.charAt(i);
             if (i <= charRanges.length() - 3 && charRanges.charAt(i + 1) == '-') {
@@ -176,13 +175,13 @@ public class ClauseFactory {
                 if (cEnd < c) {
                     throw new IllegalArgumentException("Char range limits out of order: " + c + ", " + cEnd);
                 }
-                charSets.add(cRange(c, cEnd));
+                chars.set(c, cEnd);
                 i += 2;
             } else {
-                charSets.add(new CharSet(c));
+                chars.set(c);
             }
         }
-        return charSets.size() == 1 ? charSets.get(0) : new CharSet(charSets.toArray(new CharSet[0]));
+        return invert ? new CharSet(chars).invert() : new CharSet(chars);
     }
 
     /** Construct a character set as the union of other character sets. */

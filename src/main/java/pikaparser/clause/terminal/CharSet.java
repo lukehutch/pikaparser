@@ -29,11 +29,7 @@
 //
 package pikaparser.clause.terminal;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.BitSet;
 
 import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
@@ -43,51 +39,56 @@ import pikaparser.parser.utils.StringUtils;
 /** Terminal clause that matches a character or sequence of characters. */
 public class CharSet extends Terminal {
 
-    public final Set<Character> charSet = new HashSet<>();
-
-    public final List<CharSet> subCharSets = new ArrayList<>();
-
-    public boolean invertMatch = false;
+    private BitSet chars;
+    private BitSet invertedChars;
 
     public CharSet(char... chars) {
         super();
+        this.chars = new BitSet(0xffff);
         for (int i = 0; i < chars.length; i++) {
-            this.charSet.add(chars[i]);
+            this.chars.set(chars[i]);
         }
     }
 
     public CharSet(CharSet... charSets) {
         super();
-        for (CharSet charSet : charSets) {
-            this.subCharSets.add(charSet);
+        if (charSets.length == 0) {
+            throw new IllegalArgumentException("Must provide at least one CharSet");
         }
+        this.chars = new BitSet(0xffff);
+        for (CharSet charSet : charSets) {
+            if (charSet.chars != null) {
+                for (int i = charSet.chars.nextSetBit(0); i >= 0; i = charSet.chars.nextSetBit(i + 1)) {
+                    this.chars.set(i);
+                }
+            }
+            if (charSet.invertedChars != null) {
+                if (this.invertedChars == null) {
+                    this.invertedChars = new BitSet(0xffff);
+                }
+                for (int i = charSet.invertedChars.nextSetBit(0); i >= 0; i = charSet.invertedChars
+                        .nextSetBit(i + 1)) {
+                    this.invertedChars.set(i);
+                }
+            }
+        }
+    }
+
+    public CharSet(BitSet chars) {
+        super();
+        if (chars.cardinality() == 0) {
+            throw new IllegalArgumentException("Must provide at least one char in a CharSet");
+        }
+        this.chars = chars;
     }
 
     /** Invert in-place, and return this. */
     public CharSet invert() {
-        invertMatch = !invertMatch;
+        var tmp = chars;
+        chars = invertedChars;
+        invertedChars = tmp;
+        toStringCached = null;
         return this;
-    }
-
-    private boolean matchesInput(MemoKey memoKey, String input) {
-        if (memoKey.startPos >= input.length()) {
-            return false;
-        }
-        boolean matches = !charSet.isEmpty() //
-                && (invertMatch ^ charSet.contains(input.charAt(memoKey.startPos)));
-        if (matches) {
-            return true;
-        }
-        if (!subCharSets.isEmpty()) {
-            // SubCharSets may be inverted, so need to test each individually for efficiency,
-            // rather than producing a large Set<Character> for all chars of an inverted CharSet
-            for (CharSet subCharSet : subCharSets) {
-                if (subCharSet.matchesInput(memoKey, input)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     @Override
@@ -96,72 +97,68 @@ public class CharSet extends Terminal {
 
     @Override
     public Match match(MemoTable memoTable, MemoKey memoKey, String input) {
-        if (matchesInput(memoKey, input)) {
-            // Terminals are not memoized (i.e. don't look in the memo table)
-            return new Match(memoKey, /* len = */ 1, Match.NO_SUBCLAUSE_MATCHES);
+        if (memoKey.startPos < input.length()) {
+            char c = input.charAt(memoKey.startPos);
+            if ((chars != null && chars.get(c)) || (invertedChars != null && !invertedChars.get(c))) {
+                // Terminals are not memoized (i.e. don't look in the memo table)
+                return new Match(memoKey, /* len = */ 1, Match.NO_SUBCLAUSE_MATCHES);
+            }
         }
         return null;
     }
 
-    private void getCharSets(List<CharSet> charSets) {
-        if (!charSet.isEmpty()) {
-            charSets.add(this);
-        }
-        for (var subCharSet : subCharSets) {
-            subCharSet.getCharSets(charSets);
-        }
-    }
-
-    private void toString(StringBuilder buf) {
-        var charsSorted = new ArrayList<>(charSet);
-        Collections.sort(charsSorted);
-        boolean isSingleChar = !invertMatch && charsSorted.size() == 1;
+    private static void toString(BitSet chars, int cardinality, boolean inverted, StringBuilder buf) {
+        boolean isSingleChar = !inverted && cardinality == 1;
         if (isSingleChar) {
-            char c = charsSorted.iterator().next();
+            char c = (char) chars.nextSetBit(0);
             buf.append('\'');
             buf.append(StringUtils.escapeQuotedChar(c));
             buf.append('\'');
         } else {
-            if (!charsSorted.isEmpty()) {
-                buf.append('[');
-                if (invertMatch) {
-                    buf.append('^');
-                }
-                for (int i = 0; i < charsSorted.size(); i++) {
-                    char c = charsSorted.get(i);
-                    buf.append(StringUtils.escapeCharRangeChar(c));
-                    int j = i + 1;
-                    while (j < charsSorted.size() && charsSorted.get(j).charValue() == c + (j - i)) {
-                        j++;
-                    }
-                    if (j > i + 2) {
-                        buf.append("-");
-                        i = j - 1;
-                        buf.append(charsSorted.get(i));
-                    }
-                }
-                buf.append(']');
+            buf.append('[');
+            if (inverted) {
+                buf.append('^');
             }
+            for (int i = chars.nextSetBit(0); i >= 0; i = chars.nextSetBit(i + 1)) {
+                buf.append(StringUtils.escapeCharRangeChar((char) i));
+                if (i < chars.size() - 1 && chars.get(i + 1)) {
+                    // Contiguous char range
+                    int end = i + 2;
+                    while (end < chars.size() && chars.get(end)) {
+                        end++;
+                    }
+                    int numCharsSpanned = end - i;
+                    if (numCharsSpanned > 2) {
+                        buf.append('-');
+                    }
+                    buf.append((char) (end - 1));
+                    i = end - 1;
+                }
+            }
+            buf.append(']');
         }
     }
 
     @Override
     public String toString() {
         if (toStringCached == null) {
-            List<CharSet> charSets = new ArrayList<>();
-            getCharSets(charSets);
             var buf = new StringBuilder();
-            if (charSets.size() > 1) {
+            var charsCardinality = chars == null ? 0 : chars.cardinality();
+            var invertedCharsCardinality = invertedChars == null ? 0 : invertedChars.cardinality();
+            var invertedAndNot = charsCardinality > 0 && invertedCharsCardinality > 0;
+            if (invertedAndNot) {
                 buf.append('(');
             }
-            int startLen = buf.length();
-            for (var charSet : charSets) {
-                if (buf.length() > startLen) {
-                    buf.append(" | ");
-                }
-                charSet.toString(buf);
+            if (charsCardinality > 0) {
+                toString(chars, charsCardinality, false, buf);
             }
-            if (charSets.size() > 1) {
+            if (invertedAndNot) {
+                buf.append(" | ");
+            }
+            if (invertedCharsCardinality > 0) {
+                toString(invertedChars, invertedCharsCardinality, true, buf);
+            }
+            if (invertedAndNot) {
                 buf.append(')');
             }
             toStringCached = buf.toString();
