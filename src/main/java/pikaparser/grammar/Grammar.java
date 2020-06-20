@@ -168,6 +168,9 @@ public class Grammar {
 
         // Main parsing loop
         for (int startPos = input.length() - 1; startPos >= 0; --startPos) {
+            if (DEBUG) {
+                System.out.println("=============== POSITION: " + startPos + " CHARACTER:[" + input.charAt(startPos) + "] ===============");
+            }
             priorityQueue.addAll(terminals);
             while (!priorityQueue.isEmpty()) {
                 // Remove a clause from the priority queue (ordered from terminals to toplevel clauses)
