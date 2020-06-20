@@ -926,6 +926,7 @@ InfixOperator
     / STAR
     / DIV
     / MOD
+    / INSTANCEOF
     ;
 
 ConditionalExpression
