@@ -29,6 +29,9 @@
 //
 package pikaparser.parser.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** String utilities. */
 public class StringUtils {
     private static final char NON_ASCII_CHAR = '■';
@@ -102,6 +105,41 @@ public class StringUtils {
         }
     }
 
+    /** Get the sequence of (possibly escaped) characters in a char range string. */
+    public static List<String> getCharRangeChars(String str) {
+        var charRangeChars = new ArrayList<String>();
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (c == '\\') {
+                if (i == str.length() - 1) {
+                    // Should not happen
+                    throw new IllegalArgumentException("Got backslash at end of quoted string");
+                }
+                if (str.charAt(i + 1) == 'u') {
+                    if (i > str.length() - 6) {
+                        // Should not happen
+                        throw new IllegalArgumentException("Truncated Unicode character sequence");
+                    }
+                    charRangeChars.add(Character.toString(unescapeChar(str.substring(i, i + 6))));
+                    i += 5; // Consume escaped characters
+                } else {
+                    var escapeSeq = str.substring(i, i + 2);
+                    if (escapeSeq.equals("\\-") || escapeSeq.equals("\\^") || escapeSeq.equals("\\]")
+                            || escapeSeq.equals("\\\\")) {
+                        // Preserve range-specific escaping for char ranges
+                        charRangeChars.add(escapeSeq);
+                    } else {
+                        charRangeChars.add(Character.toString(unescapeChar(escapeSeq)));
+                    }
+                    i++; // Consume escaped character
+                }
+            } else {
+                charRangeChars.add(Character.toString(c));
+            }
+        }
+        return charRangeChars;
+    }
+
     /** Unescape a string. */
     public static String unescapeString(String str) {
         StringBuilder buf = new StringBuilder();
@@ -120,7 +158,8 @@ public class StringUtils {
                     buf.append(unescapeChar(str.substring(i, i + 6)));
                     i += 5; // Consume escaped characters
                 } else {
-                    buf.append(unescapeChar(str.substring(i, i + 2)));
+                    var escapeSeq = str.substring(i, i + 2);
+                    buf.append(unescapeChar(escapeSeq));
                     i++; // Consume escaped character
                 }
             } else {
@@ -173,12 +212,14 @@ public class StringUtils {
 
     /** Escape a character for inclusion in a character range pattern. */
     public static String escapeCharRangeChar(char c) {
-        if (c == '[') {
-            return "\\[";
-        } else if (c == ']') {
+        if (c == ']') {
             return "\\]";
         } else if (c == '^') {
             return "\\^";
+        } else if (c == '-') {
+            return "\\-";
+        } else if (c == '\\') {
+            return "\\\\";
         } else {
             return escapeChar(c);
         }

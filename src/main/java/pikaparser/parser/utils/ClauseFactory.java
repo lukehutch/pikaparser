@@ -165,20 +165,31 @@ public class ClauseFactory {
      * Construct a terminal that matches a character range, specified using regexp notation without the square
      * brackets.
      */
-    public static CharSet cRange(String charRanges) {
-        boolean invert = charRanges.startsWith("^");
+    public static CharSet cRange(String charRangeStr) {
+        boolean invert = charRangeStr.startsWith("^");
+        var charList = StringUtils.getCharRangeChars(invert ? charRangeStr.substring(1) : charRangeStr);
         var chars = new BitSet(0xffff);
-        for (int i = invert ? 1 : 0; i < charRanges.length(); i++) {
-            char c = charRanges.charAt(i);
-            if (i <= charRanges.length() - 3 && charRanges.charAt(i + 1) == '-') {
-                char cEnd = charRanges.charAt(i + 2);
-                if (cEnd < c) {
-                    throw new IllegalArgumentException("Char range limits out of order: " + c + ", " + cEnd);
+        for (int i = 0; i < charList.size(); i++) {
+            var c = charList.get(i);
+            if (c.length() == 2) {
+                // Unescape \^, \-, \], \\
+                c = c.substring(1);
+            }
+            var c0 = c.charAt(0);
+            if (i <= charList.size() - 3 && charList.get(i + 1).equals("-")) {
+                var cEnd = charList.get(i + 2);
+                if (cEnd.length() == 2) {
+                    // Unescape \^, \-, \], \\
+                    cEnd = cEnd.substring(1);
                 }
-                chars.set(c, cEnd + 1);
+                var cEnd0 = cEnd.charAt(0);
+                if (cEnd0 < c0) {
+                    throw new IllegalArgumentException("Char range limits out of order: " + c0 + ", " + cEnd0);
+                }
+                chars.set(c0, cEnd0 + 1);
                 i += 2;
             } else {
-                chars.set(c);
+                chars.set(c0);
             }
         }
         return invert ? new CharSet(chars).invert() : new CharSet(chars);

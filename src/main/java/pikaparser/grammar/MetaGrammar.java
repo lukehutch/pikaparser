@@ -235,6 +235,7 @@ public class MetaGrammar {
                     first( //
                             c('\\', ']').invert(), //
                             ruleRef(ESCAPED_CTRL_CHAR), //
+                            str("\\-"), //
                             str("\\\\"), //
                             str("\\]"), //
                             str("\\^"))),
@@ -362,7 +363,7 @@ public class MetaGrammar {
             clause = nothing();
             break;
         case CHAR_RANGE_AST:
-            clause = cRange(StringUtils.unescapeString(astNode.getText()));
+            clause = cRange(astNode.getText());
             break;
         default:
             // Keep recursing for parens (the only type of AST node that doesn't have a label)
