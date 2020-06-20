@@ -29,22 +29,21 @@
 //
 package pikaparser;
 
-import org.junit.Test;
-import pikaparser.clause.Clause;
-import pikaparser.grammar.MetaGrammar;
-import pikaparser.memotable.Match;
-import pikaparser.parser.utils.ParserInfo;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
+import static pikaparser.TestUtils.loadResourceFile;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 //        import pikaparser.parser.utils.ParserInfo;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static pikaparser.TestUtils.loadResourceFile;
+import org.junit.Test;
+
+import parboiled.ParboiledJavaGrammar;
+import pikaparser.clause.Clause;
+import pikaparser.grammar.MetaGrammar;
+import pikaparser.memotable.Match;
+import pikaparser.parser.utils.ParserInfo;
 
 public class EndToEndTest {
 
@@ -56,11 +55,9 @@ public class EndToEndTest {
         final var input = loadResourceFile("arithmetic.input");
         final var memoTable = grammar.parse(input);
 
-
-        final var topRuleName = "Program";
-        final String[] recoveryRuleNames = { topRuleName, "Statement" };
-        ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
-
+        // final var topRuleName = "Program";
+        // final String[] recoveryRuleNames = { topRuleName, "Statement" };
+        // ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
 
         final var allClauses = memoTable.grammar.allClauses;
         assertThat(allClauses.size(), is(27));
@@ -101,7 +98,7 @@ public class EndToEndTest {
         final var grammarSpec = loadResourceFile("Java.1.8.peg");
         final var grammar = MetaGrammar.parse(grammarSpec);
 
-        final var input = loadResourceFile("MemoTable.java");
+        final var input = loadResourceFile("GrammarUtils.java");
         final var memoTable = grammar.parse(input);
 
         final var topRuleName = "Compilation";
@@ -110,9 +107,39 @@ public class EndToEndTest {
         // Huge output; only do this if you have a big buffer
         // ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
 
+        // ParserInfo.printParseTreeInMemoTableForm(memoTable);
+
         final var syntaxErrors = memoTable.getSyntaxErrors(recoveryRuleNames);
-        if (! syntaxErrors.isEmpty()) {
+        if (!syntaxErrors.isEmpty()) {
             ParserInfo.printSyntaxErrors(syntaxErrors);
         }
+        assertThat(syntaxErrors.size(), is(0));
     }
+
+    @Test
+    public void can_parse_java_example_parboiled() throws IOException, URISyntaxException {
+        final var grammar = ParboiledJavaGrammar.grammar;
+
+        var input = loadResourceFile("GrammarUtils.java");
+
+        // Java 6 doesn't support diamond operator or lambdas
+        input = input.replaceAll("<>", "");
+
+        final var memoTable = grammar.parse(input);
+
+        final var topRuleName = "CompilationUnit";
+        final String[] recoveryRuleNames = { topRuleName };
+
+        // Huge output; only do this if you have a big buffer
+        //ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
+
+        // ParserInfo.printParseTreeInMemoTableForm(memoTable);
+
+        final var syntaxErrors = memoTable.getSyntaxErrors(recoveryRuleNames);
+        if (!syntaxErrors.isEmpty()) {
+            ParserInfo.printSyntaxErrors(syntaxErrors);
+        }
+        assertThat(syntaxErrors.size(), is(0));
+    }
+
 }
