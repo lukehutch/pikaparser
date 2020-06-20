@@ -47,6 +47,7 @@ import pikaparser.memotable.Match;
 import pikaparser.memotable.MemoKey;
 import pikaparser.memotable.MemoTable;
 import pikaparser.parser.utils.GrammarUtils;
+import pikaparser.parser.utils.StringUtils;
 
 /** A grammar. The {@link #parse(String)} method runs the parser on the provided input string. */
 public class Grammar {
@@ -60,7 +61,7 @@ public class Grammar {
     public final List<Clause> allClauses;
 
     /** If true, print verbose debug output. */
-    public static boolean DEBUG = false;
+    public static boolean DEBUG = true;
 
     /** Construct a grammar from a set of rules. */
     public Grammar(List<Rule> rules) {
@@ -169,7 +170,8 @@ public class Grammar {
         // Main parsing loop
         for (int startPos = input.length() - 1; startPos >= 0; --startPos) {
             if (DEBUG) {
-                System.out.println("=============== POSITION: " + startPos + " CHARACTER:[" + input.charAt(startPos) + "] ===============");
+                System.out.println("=============== POSITION: " + startPos + " CHARACTER:["
+                        + StringUtils.escapeQuotedChar(input.charAt(startPos)) + "] ===============");
             }
             priorityQueue.addAll(terminals);
             while (!priorityQueue.isEmpty()) {
