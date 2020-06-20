@@ -2,14 +2,14 @@ Compilation
     <- Spacing CompilationUnit SUB? EOT;
 
 _ <- [ -~] ;
-SUB <- "\t" ;
+SUB <- '\u001a' ;
 EOT <- !_ ;
 
 Spacing
-    <- ( [ \t\r\n]+
-      / "/*" (_ !"*/")* "*/"
-      / "//" (_ ![\r\n])* [\r\n]
-      )* ;
+    <- (  [ \t\r\n]+
+       / "/*" ( [^*] / '*' !'/' )* "*/"
+       / "//" [^\n]* '\n'?
+       )* ;
 
 Identifier  <- !Keyword Letter LetterOrDigit* Spacing ;
 
@@ -901,7 +901,7 @@ CastExpression
 
 InfixExpression
     <- UnaryExpression
-          (InfixOperator UnaryExpression)* ;
+          (InfixOperator UnaryExpression / INSTANCEOF ReferenceType)* ;
 
 InfixOperator
     <- OROR

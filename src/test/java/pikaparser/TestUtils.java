@@ -31,15 +31,22 @@ package pikaparser;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
+import java.util.Scanner;
 
 public class TestUtils {
-    static String loadResourceFile(String filename) throws IOException, URISyntaxException {
-        final var resource = EndToEndTest.class.getClassLoader().getResource(filename);
-        final var resourceUrl = Objects.requireNonNull(resource).toURI();
-        final var lines = Files.readAllLines(Paths.get(resourceUrl));
-        return String.join("\n", lines);
+    static String loadResourceFile(String filename) throws URISyntaxException, IOException {
+        final var resourceURI = EndToEndTest.class.getClassLoader().getResource(filename).toURI();
+        final Path resourcePath = Paths.get(resourceURI);
+        final var stringBuilder = new StringBuilder();
+
+        // Zero-width lookbehind matches position after the line break, retaining all linebreaks.
+        try(Scanner s=new Scanner(resourcePath).useDelimiter("(?<=\n)|(?!\n)(?<=\r)")) {
+            while(s.hasNext()){
+                stringBuilder.append(s.next());
+            }
+        }
+        return stringBuilder.toString();
     }
 }

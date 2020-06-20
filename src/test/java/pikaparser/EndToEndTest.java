@@ -34,16 +34,18 @@ import pikaparser.clause.Clause;
 import pikaparser.grammar.MetaGrammar;
 import pikaparser.memotable.Match;
 import pikaparser.parser.utils.ParserInfo;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.NavigableMap;
 //        import pikaparser.parser.utils.ParserInfo;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static pikaparser.TestUtils.loadResourceFile;
 
 public class EndToEndTest {
@@ -56,11 +58,9 @@ public class EndToEndTest {
         final var input = loadResourceFile("arithmetic.input");
         final var memoTable = grammar.parse(input);
 
-
         final var topRuleName = "Program";
         final String[] recoveryRuleNames = { topRuleName, "Statement" };
         ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
-
 
         final var allClauses = memoTable.grammar.allClauses;
         assertThat(allClauses.size(), is(27));
@@ -113,6 +113,12 @@ public class EndToEndTest {
         final var syntaxErrors = memoTable.getSyntaxErrors(recoveryRuleNames);
         if (! syntaxErrors.isEmpty()) {
             ParserInfo.printSyntaxErrors(syntaxErrors);
+            fail("Syntax errors were present");
         }
+
+        final Clause topLevelClause = memoTable.grammar.allClauses.get(memoTable.grammar.allClauses.size() - 1);
+        final NavigableMap<Integer, Match> matchedTopLevel = memoTable.getAllNonOverlappingMatches().get(topLevelClause);
+        assertThat("Did not match top level", matchedTopLevel, notNullValue());
+        assertThat(matchedTopLevel.toString(), startsWith("{0=Spacing CompilationUnit (SUB / ()) EOT : 0"));
     }
 }
