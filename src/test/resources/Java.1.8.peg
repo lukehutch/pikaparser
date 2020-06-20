@@ -901,7 +901,7 @@ CastExpression
 
 InfixExpression
     <- UnaryExpression
-          (InfixOperator UnaryExpression / INSTANCEOF ReferenceType)* ;
+          (InfixOperator UnaryExpression)* ;
 
 InfixOperator
     <- OROR
