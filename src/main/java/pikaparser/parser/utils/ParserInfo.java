@@ -324,7 +324,7 @@ public class ParserInfo {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Print syntax errors obtained from {@link Grammar#getSyntaxErrors(MemoTable, String, String...)}. */
+    /** Print syntax errors obtained from {@link MemoTable#getSyntaxErrors(String...)}. */
     public static void printSyntaxErrors(NavigableMap<Integer, Entry<Integer, String>> syntaxErrors) {
         if (!syntaxErrors.isEmpty()) {
             System.out.println("\nSYNTAX ERRORS:\n");
