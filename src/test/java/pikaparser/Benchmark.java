@@ -29,16 +29,15 @@
 //
 package pikaparser;
 
-import org.junit.Test;
-import pikaparser.grammar.MetaGrammar;
-import pikaparser.memotable.MemoTable;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.concurrent.Flow;
-import java.util.function.Consumer;
 import java.util.function.Function;
+
+import org.junit.Test;
+
+import pikaparser.grammar.MetaGrammar;
+import pikaparser.memotable.MemoTable;
 
 public class Benchmark {
 
@@ -47,7 +46,7 @@ public class Benchmark {
         final var grammarSpec = TestUtils.loadResourceFile("arithmetic.grammar");
         final var toBeParsed = TestUtils.loadResourceFile("arithmetic.input");
 
-        final Function<String, MemoTable>  parseGrammarAndParseInput = (String input) -> {
+        final Function<String, MemoTable> parseGrammarAndParseInput = (String input) -> {
             final var grammar = MetaGrammar.parse(grammarSpec);
             return grammar.parse(input);
         };
@@ -72,17 +71,13 @@ public class Benchmark {
 
     private static <T> void executeInTimedLoop(Function<String, T> toExecute, String input, String benchmarkName) {
         final long[] results = new long[100];
-        for(int i = 0; i<100; i++) {
+        for (int i = 0; i < 100; i++) {
             final long start = System.nanoTime();
             toExecute.apply(input);
             results[i] = System.nanoTime() - start;
         }
 
         System.out.println("\n\n\n===================== RESULTS FOR " + benchmarkName + "=====================");
-        System.out.println(
-            Arrays.stream(results)
-                .mapToDouble(nano -> nano / 1_000_000_000.0)
-                .summaryStatistics()
-        );
+        System.out.println(Arrays.stream(results).mapToDouble(nano -> nano / 1_000_000_000.0).summaryStatistics());
     }
 }
