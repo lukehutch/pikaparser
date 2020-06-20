@@ -58,9 +58,9 @@ public class StringUtils {
         if (c >= '0' && c <= '9') {
             return c - '0';
         } else if (c >= 'a' && c <= 'f') {
-            return c - 'a';
+            return c - 'a' + 10;
         } else if (c >= 'A' && c <= 'F') {
-            return c - 'F';
+            return c - 'A' + 10;
         }
         throw new IllegalArgumentException("Illegal hex digit: " + c);
     }
@@ -112,8 +112,17 @@ public class StringUtils {
                     // Should not happen
                     throw new IllegalArgumentException("Got backslash at end of quoted string");
                 }
-                buf.append(unescapeChar(str.substring(i, i + 2)));
-                i++; // Consume escaped character
+                if (str.charAt(i + 1) == 'u') {
+                    if (i > str.length() - 6) {
+                        // Should not happen
+                        throw new IllegalArgumentException("Truncated Unicode character sequence");
+                    }
+                    buf.append(unescapeChar(str.substring(i, i + 6)));
+                    i += 5; // Consume escaped characters
+                } else {
+                    buf.append(unescapeChar(str.substring(i, i + 2)));
+                    i++; // Consume escaped character
+                }
             } else {
                 buf.append(c);
             }
