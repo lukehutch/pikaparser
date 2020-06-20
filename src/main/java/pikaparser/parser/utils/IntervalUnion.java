@@ -77,25 +77,27 @@ public class IntervalUnion {
         var invertedIntervalSet = new IntervalUnion();
 
         int prevEndPos = startPos;
-        for (var ent : nonOverlappingRanges.entrySet()) {
-            var currStartPos = ent.getKey();
-            if (currStartPos > endPos) {
-                break;
-            }
-            var currEndPos = ent.getValue();
-            if (currStartPos > prevEndPos) {
-                // There's a gap of at least one position between adjacent ranges
-                invertedIntervalSet.addRange(prevEndPos, currStartPos);
-            }
-            prevEndPos = currEndPos;
-        }
         if (!nonOverlappingRanges.isEmpty()) {
+            for (var ent : nonOverlappingRanges.entrySet()) {
+                var currStartPos = ent.getKey();
+                if (currStartPos > endPos) {
+                    break;
+                }
+                var currEndPos = ent.getValue();
+                if (currStartPos > prevEndPos) {
+                    // There's a gap of at least one position between adjacent ranges
+                    invertedIntervalSet.addRange(prevEndPos, currStartPos);
+                }
+                prevEndPos = currEndPos;
+            }
             var lastEnt = nonOverlappingRanges.lastEntry();
             var lastEntEndPos = lastEnt.getValue();
             if (lastEntEndPos < endPos) {
                 // Final range: there is at least one position before endPos
                 invertedIntervalSet.addRange(lastEntEndPos, endPos);
             }
+        } else {
+            invertedIntervalSet.addRange(startPos, endPos);
         }
         return invertedIntervalSet;
     }
