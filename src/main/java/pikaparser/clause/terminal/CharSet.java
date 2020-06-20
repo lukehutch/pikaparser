@@ -131,7 +131,7 @@ public class CharSet extends Terminal {
                     if (numCharsSpanned > 2) {
                         buf.append('-');
                     }
-                    buf.append((char) (end - 1));
+                    buf.append(StringUtils.escapeCharRangeChar((char) (end - 1)));
                     i = end - 1;
                 }
             }
