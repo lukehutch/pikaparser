@@ -1,16 +1,15 @@
 Compilation
     <- Spacing CompilationUnit SUB? EOT;
 
-_ <- [ -~] ;
-SUB <- "\t" ;
+_ <- [\u0000-\uFFFF] ;
+SUB <- '\u001a' ;
 EOT <- !_ ;
-WS <- [ \t\r\n] ;
-ANY <- _ / WS;
+WS <- [ \t\r\n\u000C] ;
 
 Spacing
     <- ( WS+
          / "/**/"
-         / "/*" (ANY !"*/")* _ "*/"
+         / "/*" (_ !"*/")* _ "*/"
          / "//" [^\r\n]*
        )* ;
 
@@ -174,7 +173,7 @@ DecimalFloatingPointLiteral
     ;
 
 Exponent
-    <- [eE] [+]? Digits ;
+    <- [eE] [+\-]? Digits ;
 
 HexadecimalFloatingPointLiteral
     <- HexSignificand BinaryExponent [fFdD]? ;
@@ -191,7 +190,7 @@ HexDigit
     <- [a-f] / [A-F] / [0-9] ;
 
 BinaryExponent
-    <- [pP] [+]? Digits ;
+    <- [pP] [+\-]? Digits ;
 
 Digits
     <- [0-9]([_]*[0-9])* ;
@@ -258,7 +257,7 @@ INC             <-   "++"      Spacing ;
 LE              <-   "<="      Spacing ;
 LPOINT          <-   "<"       Spacing ;
 LT              <-   "<"![=<]  Spacing ;
-MINUS           <-   "-"![=>]Spacing ;
+MINUS           <-   "-"![=\->]Spacing ;
 MINUSEQU        <-   "-="      Spacing ;
 MOD             <-   "%"![=]   Spacing ;
 MODEQU          <-   "%="      Spacing ;
@@ -904,7 +903,7 @@ CastExpression
 
 InfixExpression
     <- UnaryExpression
-          (InfixOperator UnaryExpression)* ;
+          ((InfixOperator UnaryExpression) / (INSTANCEOF ReferenceType))* ;
 
 InfixOperator
     <- OROR
@@ -926,7 +925,6 @@ InfixOperator
     / STAR
     / DIV
     / MOD
-    / INSTANCEOF
     ;
 
 ConditionalExpression
