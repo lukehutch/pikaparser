@@ -38,8 +38,7 @@ import java.util.Objects;
 public class TestUtils {
     static String loadResourceFile(String filename) throws IOException, URISyntaxException {
         final var resource = EndToEndTest.class.getClassLoader().getResource(filename);
-        final var resourceUrl = Objects.requireNonNull(resource).toURI();
-        final var lines = Files.readAllLines(Paths.get(resourceUrl));
-        return String.join("\n", lines);
+        final var resourceURI = Objects.requireNonNull(resource).toURI();
+        return Files.readString(Paths.get(resourceURI));
     }
 }
