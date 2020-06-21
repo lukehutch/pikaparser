@@ -60,7 +60,7 @@ public class EndToEndTest {
         // ParserInfo.printParseResult(topRuleName, memoTable, recoveryRuleNames, false);
 
         final var allClauses = memoTable.grammar.allClauses;
-        assertThat(allClauses.size(), is(27));
+        assertThat(allClauses.size(), is(26));
 
         var firstClause = allClauses.get(0);
         var matches = memoTable.getAllMatches(firstClause);
@@ -76,7 +76,7 @@ public class EndToEndTest {
         assertThat(sixteenthMatch.memoKey.startPos, is(21));
         assertThat(sixteenthMatch.memoKey.toStringWithRuleNames(), is("[a-z] : 21"));
 
-        final Clause lastClause = allClauses.get(26);
+        final Clause lastClause = allClauses.get(25);
         matches = memoTable.getAllMatches(lastClause);
 
         final Match topLevelMatch = matches.get(0);
