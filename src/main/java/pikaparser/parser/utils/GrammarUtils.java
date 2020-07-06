@@ -134,8 +134,7 @@ public class GrammarUtils {
             findTerminals(rule.labeledClause.clause, terminalsVisited, terminals);
         }
         var allClauses = new ArrayList<Clause>(terminals);
-        var reachableVisited = new HashSet<Clause>();
-        reachableVisited.addAll(terminals);
+        var reachableVisited = new HashSet<Clause>(terminals);
         for (var topLevelClause : topLevelClausesOrdered) {
             findReachableClauses(topLevelClause, reachableVisited, allClauses);
         }
