@@ -106,11 +106,11 @@ public class GrammarUtils {
                 topLevelClauses.remove(labeledSubClause.clause);
             }
         }
-        var topLevelClausesOrdered = new ArrayList<>(topLevelClauses);
+        var dfsRoots = new ArrayList<>(topLevelClauses);
 
         // Add to the end of the list of toplevel clauses all lowest-precedence clauses, since
         // top-down precedence climbing should start at each lowest-precedence clause
-        topLevelClausesOrdered.addAll(lowestPrecedenceClauses);
+        dfsRoots.addAll(lowestPrecedenceClauses);
 
         // Finally, in case there are cycles in the grammar that are not part of a precedence
         // hierarchy, add to the end of the list of toplevel clauses the set of all "head clauses"
@@ -124,7 +124,7 @@ public class GrammarUtils {
         for (var rule : allRules) {
             findCycleHeadClauses(rule.labeledClause.clause, cycleDiscovered, cycleFinished, cycleHeadClauses);
         }
-        topLevelClausesOrdered.addAll(cycleHeadClauses);
+        dfsRoots.addAll(cycleHeadClauses);
 
         // Topologically sort all clauses into bottom-up order, starting with terminals (so that terminals are
         // all grouped together at the beginning of the list)
@@ -135,7 +135,7 @@ public class GrammarUtils {
         }
         var allClauses = new ArrayList<Clause>(terminals);
         var reachableVisited = new HashSet<Clause>(terminals);
-        for (var topLevelClause : topLevelClausesOrdered) {
+        for (var topLevelClause : dfsRoots) {
             findReachableClauses(topLevelClause, reachableVisited, allClauses);
         }
 
