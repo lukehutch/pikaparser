@@ -112,8 +112,12 @@ public class ClauseFactory {
         if (subClause instanceof Nothing) {
             throw new IllegalArgumentException(NotFollowedBy.class.getSimpleName() + "("
                     + Nothing.class.getSimpleName() + ") will never match anything");
-        } else if (subClause instanceof FollowedBy || subClause instanceof NotFollowedBy
-                || subClause instanceof Start) {
+        } else if (subClause instanceof NotFollowedBy) {
+            // Doubling NotFollowedBy yields FollowedBy.
+            // N.B. this will not catch the case of "X <- !Y; Y <- !Z;", since RuleRefs are
+            // not resolved yet
+            return new FollowedBy(subClause.labeledSubClauses[0].clause);
+        } else if (subClause instanceof FollowedBy || subClause instanceof Start) {
             throw new IllegalArgumentException(NotFollowedBy.class.getSimpleName() + "("
                     + subClause.getClass().getSimpleName() + ") is nonsensical");
         }
