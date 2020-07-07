@@ -63,11 +63,14 @@ public class Grammar {
     /** If true, print verbose debug output. */
     public static boolean DEBUG = false;
 
-    /** Construct a grammar from a set of rules. */
+    /** Construct a grammar from a set of rules. The first rule should be the toplevel rule. */
     public Grammar(List<Rule> rules) {
         if (rules.size() == 0) {
             throw new IllegalArgumentException("Grammar must consist of at least one rule");
         }
+
+        // Assume the first rule is the toplevel rule
+        Rule topLevelRule = rules.get(0);
 
         // Group rules by name
         Map<String, List<Rule>> ruleNameToRules = new HashMap<>();
@@ -140,7 +143,7 @@ public class Grammar {
         }
 
         // Topologically sort clauses, bottom-up, placing the result in allClauses
-        allClauses = GrammarUtils.findClauseTopoSortOrder(allRules, lowestPrecedenceClauses);
+        allClauses = GrammarUtils.findClauseTopoSortOrder(topLevelRule, allRules, lowestPrecedenceClauses);
 
         // Find clauses that always match zero or more characters, e.g. FirstMatch(X | Nothing).
         // Importantly, allClauses is in reverse topological order, i.e. traversal is bottom-up.

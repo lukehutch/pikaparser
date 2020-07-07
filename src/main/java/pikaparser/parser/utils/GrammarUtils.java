@@ -93,10 +93,18 @@ public class GrammarUtils {
     }
 
     /** Topologically sort all clauses into bottom-up order, from terminals up to the toplevel clause. */
-    public static List<Clause> findClauseTopoSortOrder(List<Rule> allRules, List<Clause> lowestPrecedenceClauses) {
-        // Find toplevel clauses (clauses that are not a subclause of any other clause)
+    public static List<Clause> findClauseTopoSortOrder(Rule topLevelRule, List<Rule> allRules,
+            List<Clause> lowestPrecedenceClauses) {
         var allClausesUnordered = new ArrayList<Clause>();
         var topLevelVisited = new HashSet<Clause>();
+        
+        // Add toplevel rule
+        if (topLevelRule != null) {
+            allClausesUnordered.add(topLevelRule.labeledClause.clause);
+            topLevelVisited.add(topLevelRule.labeledClause.clause);
+        }
+        
+        // Find any other toplevel clauses (clauses that are not a subclause of any other clause)
         for (var rule : allRules) {
             findReachableClauses(rule.labeledClause.clause, topLevelVisited, allClausesUnordered);
         }
