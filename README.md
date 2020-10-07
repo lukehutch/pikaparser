@@ -39,9 +39,9 @@ E[1,L] <- arith:(E op:('*' / '/') E);
 E[0,L] <- arith:(E op:('+' / '-') E);
 ```
 
-The rules are of the form `RuleName <- [ASTNodeLabel:]Clause;`
+The rules are of the form `RuleName <- Clause;`. AST node labels may be specified in the form `RuleName <- ASTNodeLabel:Clause;`. The rule name may be followed by optional square brackets containing the precedence of the rule (as an integer), optionally followed by an associativity modifier (`,L` or `,R`). 
 
-Clauses can be of the form:
+Nonterminal clauses can be specified using the following notation:
 
 * `X Y Z` for a sequence of matches (`X` should match, followed by `Y`, followed by `Z`), i.e. `Seq`
 * `X / Y / Z` for ordered choice (`X` should match, or if it doesn't, `Y` should match, or if it doesn't' `Z` should match) , i.e. `First`
@@ -51,7 +51,13 @@ Clauses can be of the form:
 * `&X` to look ahead and require `X` to match without consuming characters, i.e. `FollowedBy`
 * `!X` to look ahead and require that there is no match (the logical negation of `&X`), i.e. `NotFollowedBy`
 
-The number in the optional square brackets after the rule name is the precedence, followed by an optional associativity modifier (`,L` or `,R`). 
+Terminal clauses can be specified using the following notation. Standard Java-style character escaping is supported, including for Unicode codepoints.
+
+* `'['` for individual characters
+* `"import"` for strings of characters
+* `[0-9]` for character ranges
+* `[+\-*/]` for character sets (note `-` is escaped)
+* `[^\n]` for negated character sets (note that this will slow down the parser, since a negated matching rule will spuriously match in many more places)
 
 ### Input string to parse: `arithmetic.input`
 
