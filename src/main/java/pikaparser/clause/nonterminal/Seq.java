@@ -104,7 +104,7 @@ public class Seq extends Clause {
             var buf = new StringBuilder();
             for (int i = 0; i < labeledSubClauses.length; i++) {
                 if (i > 0) {
-                    buf.append(' ');
+                    buf.append(" ");
                 }
                 buf.append(labeledSubClauses[i].toStringWithASTNodeLabel(this));
             }

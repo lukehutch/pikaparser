@@ -62,7 +62,7 @@ public class Benchmark {
     @Test
     public void java_parsing_benchmark() throws IOException, URISyntaxException {
         final var grammarSpec = TestUtils.loadResourceFile("Java.1.8.peg");
-        final var toBeParsed = TestUtils.loadResourceFile("MemoTable.java");
+        final var toBeParsed = TestUtils.loadResourceFile("GrammarUtils.java");
 
         final var grammar = MetaGrammar.parse(grammarSpec);
 

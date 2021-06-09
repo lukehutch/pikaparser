@@ -1,6 +1,5 @@
 package parboiled;
 
-
 import static pikaparser.parser.utils.ClauseFactory.*;
 
 import java.util.Arrays;
@@ -64,7 +63,7 @@ public class ParboiledJavaGrammar {
     final static Clause STAR = terminal("*", c('='));
     final static Clause STAREQU = terminal("*=");
     final static Clause TILDA = terminal("~");
-    
+
     final static Clause ANY = cRange('\0', '~');
 
     public final static Clause ASSERT = Keyword("assert");
@@ -121,7 +120,7 @@ public class ParboiledJavaGrammar {
     //-------------------------------------------------------------------------
 
     public static String topLevelRuleName = "CompilationUnit";
-    
+
     public static Grammar grammar = new Grammar(Arrays.asList(
 
             rule("CompilationUnit", seq(ruleRef("Spacing"), optional(ruleRef("PackageDeclaration")),

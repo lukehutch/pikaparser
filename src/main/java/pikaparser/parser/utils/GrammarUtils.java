@@ -97,13 +97,13 @@ public class GrammarUtils {
             List<Clause> lowestPrecedenceClauses) {
         var allClausesUnordered = new ArrayList<Clause>();
         var topLevelVisited = new HashSet<Clause>();
-        
+
         // Add toplevel rule
         if (topLevelRule != null) {
             allClausesUnordered.add(topLevelRule.labeledClause.clause);
             topLevelVisited.add(topLevelRule.labeledClause.clause);
         }
-        
+
         // Find any other toplevel clauses (clauses that are not a subclause of any other clause)
         for (var rule : allRules) {
             findReachableClauses(rule.labeledClause.clause, topLevelVisited, allClausesUnordered);
@@ -287,7 +287,7 @@ public class GrammarUtils {
             var currPrecRuleName = rule.ruleName;
             var nextHighestPrecRuleName = precedenceOrder.get((precedenceIdx + 1) % numPrecedenceLevels).ruleName;
 
-            // If a rule has 2+ self-references, and rule is associative, need rewrite rule for associativity
+            // If a rule has 1+ self-references, need to rewrite rule to handle precedence and associativity
             var isHighestPrec = precedenceIdx == numPrecedenceLevels - 1;
             if (numSelfRefs >= 1) {
                 // Rewrite self-references to higher precedence or left- and right-recursive forms.

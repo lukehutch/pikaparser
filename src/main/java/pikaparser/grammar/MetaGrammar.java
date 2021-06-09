@@ -30,7 +30,21 @@
 package pikaparser.grammar;
 
 import static java.util.Map.entry;
-import static pikaparser.parser.utils.ClauseFactory.*;
+import static pikaparser.parser.utils.ClauseFactory.ast;
+import static pikaparser.parser.utils.ClauseFactory.c;
+import static pikaparser.parser.utils.ClauseFactory.cRange;
+import static pikaparser.parser.utils.ClauseFactory.first;
+import static pikaparser.parser.utils.ClauseFactory.followedBy;
+import static pikaparser.parser.utils.ClauseFactory.notFollowedBy;
+import static pikaparser.parser.utils.ClauseFactory.nothing;
+import static pikaparser.parser.utils.ClauseFactory.oneOrMore;
+import static pikaparser.parser.utils.ClauseFactory.optional;
+import static pikaparser.parser.utils.ClauseFactory.rule;
+import static pikaparser.parser.utils.ClauseFactory.ruleRef;
+import static pikaparser.parser.utils.ClauseFactory.seq;
+import static pikaparser.parser.utils.ClauseFactory.start;
+import static pikaparser.parser.utils.ClauseFactory.str;
+import static pikaparser.parser.utils.ClauseFactory.zeroOrMore;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -394,18 +408,17 @@ public class MetaGrammar {
     public static Grammar parse(String input) {
         var memoTable = grammar.parse(input);
 
-        //        ParserInfo.printParseResult("GRAMMAR", grammar, memoTable, input,
-        //                new String[] { "GRAMMAR", "RULE", "CLAUSE[0]" }, /* showAllMatches = */ false);
+        //		ParserInfo.printParseResult("GRAMMAR", memoTable, new String[] { "GRAMMAR", "RULE", "CLAUSE[1]" },
+        //				/* showAllMatches = */ false);
         //
-        //        System.out.println("\nParsed meta-grammar:");
-        //        for (var clause : MetaGrammar.grammar.allClauses) {
-        //            System.out.println("    " + clause.toStringWithRuleNames());
-        //        }
+        //		System.out.println("\nParsed meta-grammar:");
+        //		for (var clause : MetaGrammar.grammar.allClauses) {
+        //			System.out.println("    " + clause.toStringWithRuleNames());
+        //		}
 
-        var syntaxErrors = memoTable.getSyntaxErrors(
-            GRAMMAR, RULE, CLAUSE + "[" + clauseTypeToPrecedence.get(First.class) + "]"
-        );
-        if (! syntaxErrors.isEmpty()) {
+        var syntaxErrors = memoTable.getSyntaxErrors(GRAMMAR, RULE,
+                CLAUSE + "[" + clauseTypeToPrecedence.get(First.class) + "]");
+        if (!syntaxErrors.isEmpty()) {
             ParserInfo.printSyntaxErrors(syntaxErrors);
         }
 
@@ -425,8 +438,11 @@ public class MetaGrammar {
             }
             throw new IllegalArgumentException("Stopping");
         }
+        var topLevelMatch = topLevelMatches.get(0);
 
-        var topLevelASTNode = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatches.get(0), input);
+        // TreeUtils.printTreeView(topLevelMatch, input);
+
+        var topLevelASTNode = new ASTNode(topLevelRuleASTNodeLabel, topLevelMatch, input);
 
         // System.out.println(topLevelASTNode);
 

@@ -140,12 +140,10 @@ public class ParserInfo {
                     subClauseIsInDifferentCycle ? subClauseMatchDepth + 1 : subClauseMatchDepth);
         }
         var matchesForDepth = cycleDepthToMatches.computeIfAbsent(cycleDepth,
-            k -> new TreeMap<>(Collections.reverseOrder())
-        );
+                k -> new TreeMap<>(Collections.reverseOrder()));
 
         var matchesForClauseIdx = matchesForDepth.computeIfAbsent(match.memoKey.clause.clauseIdx,
-            k -> new TreeMap<>()
-        );
+                k -> new TreeMap<>());
 
         matchesForClauseIdx.put(match.memoKey.startPos, match);
         return cycleDepth;

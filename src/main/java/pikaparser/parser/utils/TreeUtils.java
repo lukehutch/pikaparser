@@ -112,7 +112,7 @@ public class TreeUtils {
     }
 
     /** Print the parse tree rooted at a {@link Match} node to stdout. */
-    public void printTreeView(Match match, String input) {
+    public static void printTreeView(Match match, String input) {
         var buf = new StringBuilder();
         renderTreeView(match, null, input, "", true, buf);
         System.out.println(buf.toString());

@@ -78,33 +78,6 @@ public class ASTNode {
         }
     }
 
-    private void getAllDescendantsNamed(String name, List<ASTNode> termsOut) {
-        if (label.equals(name)) {
-            termsOut.add(this);
-        } else {
-            for (ASTNode child : children) {
-                child.getAllDescendantsNamed(name, termsOut);
-            }
-        }
-    }
-
-    public List<ASTNode> getAllDescendantsNamed(String name) {
-        List<ASTNode> terms = new ArrayList<>();
-        getAllDescendantsNamed(name, terms);
-        return terms;
-    }
-
-    public ASTNode getFirstDescendantNamed(String name) {
-        if (label.equals(name)) {
-            return this;
-        } else {
-            for (ASTNode child : children) {
-                return child.getFirstDescendantNamed(name);
-            }
-        }
-        throw new IllegalArgumentException("Node not found: \"" + name + "\"");
-    }
-
     public ASTNode getOnlyChild() {
         if (children.size() != 1) {
             throw new IllegalArgumentException("Expected one child, got " + children.size());
