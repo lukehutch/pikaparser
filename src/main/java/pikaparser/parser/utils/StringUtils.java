@@ -98,7 +98,7 @@ public class StringUtils {
                 int c1 = hexDigitToInt(escapedChar.charAt(3));
                 int c2 = hexDigitToInt(escapedChar.charAt(4));
                 int c3 = hexDigitToInt(escapedChar.charAt(5));
-                return (char) ((c0 << 24) | (c1 << 16) | (c2 << 8) | c3);
+                return (char) ((c0 << 12) | (c1 << 8) | (c2 << 4) | c3);
             } else {
                 throw new IllegalArgumentException("Invalid character: " + escapedChar);
             }
