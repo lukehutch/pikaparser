@@ -159,7 +159,7 @@ public class ClauseFactory {
             throw new IllegalArgumentException("maxChar < minChar");
         }
         final BitSet bs = new BitSet(maxChar + 1);
-        bs.set(minChar, maxChar);
+        bs.set(minChar, maxChar + 1);
         return new CharSet(bs);
     }
 
