@@ -36,11 +36,11 @@ import java.util.function.Function;
 
 import org.junit.Test;
 
+import parboiled.ParboiledJavaGrammar;
 import pikaparser.grammar.MetaGrammar;
 import pikaparser.memotable.MemoTable;
 
 public class Benchmark {
-
     @Test
     public void arithmetic_example_benchmark() throws IOException, URISyntaxException {
         final var grammarSpec = TestUtils.loadResourceFile("arithmetic.grammar");
@@ -60,13 +60,21 @@ public class Benchmark {
     }
 
     @Test
-    public void java_parsing_benchmark() throws IOException, URISyntaxException {
+    public void java_parsing_benchmark_1() throws IOException, URISyntaxException {
         final var grammarSpec = TestUtils.loadResourceFile("Java.1.8.peg");
         final var toBeParsed = TestUtils.loadResourceFile("GrammarUtils.java");
 
         final var grammar = MetaGrammar.parse(grammarSpec);
 
-        executeInTimedLoop(grammar::parse, toBeParsed, "java-parse");
+        executeInTimedLoop(grammar::parse, toBeParsed, "java-parse-1");
+    }
+
+    @Test
+    public void java_parsing_benchmark_2() throws IOException, URISyntaxException {
+        final var grammar = ParboiledJavaGrammar.grammar;
+        final var toBeParsed = TestUtils.loadResourceFile("GrammarUtils.java");
+
+        executeInTimedLoop(grammar::parse, toBeParsed, "java-parse-2");
     }
 
     private static <T> void executeInTimedLoop(Function<String, T> toExecute, String input, String benchmarkName) {
