@@ -158,11 +158,9 @@ public class ClauseFactory {
         if (maxChar < minChar) {
             throw new IllegalArgumentException("maxChar < minChar");
         }
-        char[] chars = new char[maxChar - minChar + 1];
-        for (char c = minChar; c <= maxChar; c++) {
-            chars[c - minChar] = c;
-        }
-        return new CharSet(chars);
+        final BitSet bs = new BitSet(maxChar + 1);
+        bs.set(minChar, maxChar);
+        return new CharSet(bs);
     }
 
     /**
