@@ -136,10 +136,15 @@ public class Match {
             return false;
         }
         // An earlier subclause match in a First clause is better than a later subclause match
+        if (memoKey.clause instanceof First) {
+            if (this.firstMatchingSubClauseIdx < other.firstMatchingSubClauseIdx) {
+                return true;
+            } else if (this.firstMatchingSubClauseIdx > other.firstMatchingSubClauseIdx) {
+                return false;
+            }
+        }
         // A longer match (i.e. a match that spans more characters in the input) is better than a shorter match
-        return (memoKey.clause instanceof First // 
-                && this.firstMatchingSubClauseIdx < other.firstMatchingSubClauseIdx) //
-                || this.len > other.len;
+        return this.len > other.len;
     }
 
     public String toStringWithRuleNames() {
