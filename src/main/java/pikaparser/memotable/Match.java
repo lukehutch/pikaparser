@@ -129,22 +129,18 @@ public class Match {
     /**
      * Compare this {@link Match} to another {@link Match} of the same {@link Clause} type and start position.
      * 
-     * @return true if this {@link Match} is a better match than the other {@link Match}.
+     * @return true if this {@link Match} is a better match than the older {@link Match} in the memo table.
      */
-    public boolean isBetterThan(Match other) {
-        if (other == this) {
+    public boolean isBetterThan(Match oldMatch) {
+        if (oldMatch == this) {
             return false;
         }
-        // An earlier subclause match in a First clause is better than a later subclause match
-        if (memoKey.clause instanceof First) {
-            if (this.firstMatchingSubClauseIdx < other.firstMatchingSubClauseIdx) {
-                return true;
-            } else if (this.firstMatchingSubClauseIdx > other.firstMatchingSubClauseIdx) {
-                return false;
-            }
-        }
-        // A longer match (i.e. a match that spans more characters in the input) is better than a shorter match
-        return this.len > other.len;
+        // An later subclause match in a First clause monotonically beats a later subclause match.
+        // This is subtle... see:
+        // https://github.com/lukehutch/pikaparser/issues/32#issuecomment-861873964
+        return this.firstMatchingSubClauseIdx > oldMatch.firstMatchingSubClauseIdx
+                // A longer match is better than a shorter match
+                || this.len > oldMatch.len;
     }
 
     public String toStringWithRuleNames() {
