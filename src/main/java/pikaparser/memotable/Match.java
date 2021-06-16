@@ -135,12 +135,10 @@ public class Match {
         if (oldMatch == this) {
             return false;
         }
-        // An later subclause match in a First clause monotonically beats a later subclause match.
-        // This is subtle... see:
+        // A longer match is better than a shorter match.
+        // See long discussion here:
         // https://github.com/lukehutch/pikaparser/issues/32#issuecomment-861873964
-        return this.firstMatchingSubClauseIdx > oldMatch.firstMatchingSubClauseIdx
-                // A longer match is better than a shorter match
-                || this.len > oldMatch.len;
+        return this.len > oldMatch.len;
     }
 
     public String toStringWithRuleNames() {
