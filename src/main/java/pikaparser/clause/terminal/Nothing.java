@@ -42,8 +42,9 @@ public class Nothing extends Terminal {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
         canMatchZeroChars = true;
+        return false;
     }
 
     @Override

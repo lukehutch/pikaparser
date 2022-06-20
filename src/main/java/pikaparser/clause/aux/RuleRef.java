@@ -47,7 +47,8 @@ public class RuleRef extends Clause {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
+        return false;
     }
 
     @Override

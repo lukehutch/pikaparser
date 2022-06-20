@@ -122,9 +122,10 @@ public abstract class Clause {
 
     /**
      * Sets {@link #canMatchZeroChars} to true if this clause can match zero characters, i.e. always matches at any
-     * input position. Called bottom-up. Implemented in subclasses.
+     * input position. Called bottom-up. Implemented in subclasses. Returns `true` if {@link #canMatchZeroChars} is
+     * flipped from false to true. (Return false for terminals like {@link Nothing} that always return true.)
      */
-    public abstract void determineWhetherCanMatchZeroChars();
+    public abstract boolean determineWhetherCanMatchZeroChars();
 
     // -------------------------------------------------------------------------------------------------------------
 

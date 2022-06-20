@@ -26,26 +26,28 @@ public class TestArithmetic {
     }
 
     public static void main(String[] args) {
-        //		final var grammar = MetaGrammar.parse("Program <- Statement+;\n" //
-        //				+ "Statement <- var:[a-z]+ '=' Sum ';';\n" //
-        //				+ "Sum <- add:(Sum '+' Term) / sub:(Sum '-' Term) / term:Term;\n" //
-        //				+ "Term <- num:[0-9]+ / sym:[a-z]+;\n");
+        final var grammar1 = MetaGrammar.parse("Program <- Statement+;\n" //
+                + "Statement <- var:[a-z]+ '=' Sum ';';\n" //
+                + "Sum <- add:(Sum '+' Term) / sub:(Sum '-' Term) / term:Term;\n" //
+                + "Term <- num:[0-9]+ / sym:[a-z]+;\n");
+        tryParsing(grammar1, "Program", new String[] { "Statement" }, "x=a+b-c;"); // Doesn't work
+        tryParsing(grammar1, "Program", new String[] { "Statement" }, "x=a-b+c;"); // Works
 
-        //		final var grammar1 = MetaGrammar.parse("Program <- Statement+;\n" //
-        //				+ "Statement <- var:[a-z]+ '=' Sum3 ';';\n" //
-        //				+ "Sum3 <- add:(Sum2Plus '+' Term) / sub:(Sum2Minus '-' Term) / term:Term;\n"
-        //				+ "Sum2Plus <- term:Term;\n"
-        //				+ "Sum2Minus <- add:(Sum1Minus '+' Term) / sub:(Sum1Minus '-' Term) / term:Term;\n"
-        //				+ "Sum1Minus <- term:Term;\n" + "Term <- num:[0-9]+ / sym:[a-z]+;");
-        //		tryParsing(grammar1, new String[] { "Statement" }, "x=a+b-c;");
-
-        var grammar2 = MetaGrammar.parse("E <- sum:(E op:'+' E) / N;\n" //
+        var grammar2 = MetaGrammar.parse("E <- sum:(E op:'+' E) / N;\n" // R assoc (ambiguous)
                 + "N <- num:[0-9]+;\n");
         tryParsing(grammar2, "E", new String[] { "E", "N" }, "0+1+2+3;");
 
-        var grammar3 = MetaGrammar.parse("E <- sum:(E op:'+' N) / N;\n" //
+        var grammar3 = MetaGrammar.parse("E <- sum:(E op:'+' N) / N;\n" // L assoc
                 + "N <- num:[0-9]+;\n");
         tryParsing(grammar3, "E", new String[] { "E", "N" }, "0+1+2+3;");
+
+        // Pika parser can't parse this, because it memoizes at the level of individual clauses, not rules:
+        // https://github.com/lukehutch/pikaparser/issues/32#issuecomment-861895166
+        var grammar4 = MetaGrammar.parse("A <- a:(B / 'x'); B <- b:(A 'y' / A 'x');");
+        tryParsing(grammar4, "A", new String[] { "A", "B" }, "xxyx");
+
+        var grammar5 = MetaGrammar.parse("A <- \"a \" B \"monkeyapples\"; B <- \"million \" / \"million monkey\";");
+        tryParsing(grammar5, "A", new String[] { "A", "B" }, "a million monkeyapples");
 
     }
 

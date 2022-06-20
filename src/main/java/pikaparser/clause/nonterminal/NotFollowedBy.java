@@ -41,13 +41,13 @@ public class NotFollowedBy extends Clause {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
-        // Set canMatchZeroChars to true
+    public boolean determineWhetherCanMatchZeroChars() {
         canMatchZeroChars = true;
         if (labeledSubClauses[0].clause.canMatchZeroChars) {
             throw new IllegalArgumentException(
                     "Subclause always matches zero characters, so this clause will never match anything: " + this);
         }
+        return false;
     }
 
     @Override

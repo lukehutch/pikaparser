@@ -44,7 +44,8 @@ public class First extends Clause {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
+        boolean oldCanMatchZeroChars = canMatchZeroChars;
         for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
             // Up to one subclause of a First clause can match zero characters, and if present,
             // the subclause that can match zero characters must be the last subclause
@@ -59,6 +60,7 @@ public class First extends Clause {
                 break;
             }
         }
+        return !oldCanMatchZeroChars && canMatchZeroChars;
     }
 
     @Override

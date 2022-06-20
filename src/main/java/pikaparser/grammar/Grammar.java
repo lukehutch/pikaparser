@@ -147,10 +147,17 @@ public class Grammar {
 
         // Find clauses that always match zero or more characters, e.g. FirstMatch(X | Nothing).
         // Importantly, allClauses is in reverse topological order, i.e. traversal is bottom-up.
-        for (Clause clause : allClauses) {
-            clause.determineWhetherCanMatchZeroChars();
+        for (boolean changed = true; changed; ) {
+            // Need to keep propagating `canMatchZeroChars = true` until nothing changes
+            // (see issue #34)
+            changed = false;
+            for (Clause clause : allClauses) {
+                if (clause.determineWhetherCanMatchZeroChars()) {
+                    changed = true;
+                }
+            }
         }
-
+        
         // Find seed parent clauses (in the case of Seq, this depends upon alwaysMatches being set in the prev step)
         for (var clause : allClauses) {
             clause.addAsSeedParentClause();

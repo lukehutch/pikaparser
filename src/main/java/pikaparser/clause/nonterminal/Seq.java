@@ -46,9 +46,10 @@ public class Seq extends Clause {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
         // For Seq, all subclauses must be able to match zero characters for the whole clause to
         // be able to match zero characters
+        boolean oldCanMatchZeroChars = canMatchZeroChars; 
         canMatchZeroChars = true;
         for (int subClauseIdx = 0; subClauseIdx < labeledSubClauses.length; subClauseIdx++) {
             if (!labeledSubClauses[subClauseIdx].clause.canMatchZeroChars) {
@@ -56,6 +57,7 @@ public class Seq extends Clause {
                 break;
             }
         }
+        return !oldCanMatchZeroChars && canMatchZeroChars;
     }
 
     @Override

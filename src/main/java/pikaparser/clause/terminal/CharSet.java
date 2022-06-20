@@ -92,7 +92,8 @@ public class CharSet extends Terminal {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
+        return false;
     }
 
     @Override

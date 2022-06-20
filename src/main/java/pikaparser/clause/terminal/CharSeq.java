@@ -46,7 +46,11 @@ public class CharSeq extends Terminal {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
+        if (str.isEmpty()) {
+            canMatchZeroChars = true;
+        }
+        return false;
     }
 
     @Override

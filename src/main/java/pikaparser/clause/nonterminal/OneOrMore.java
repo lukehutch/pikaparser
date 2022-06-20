@@ -40,10 +40,12 @@ public class OneOrMore extends Clause {
     }
 
     @Override
-    public void determineWhetherCanMatchZeroChars() {
+    public boolean determineWhetherCanMatchZeroChars() {
+        boolean oldCanMatchZeroChars = canMatchZeroChars;
         if (labeledSubClauses[0].clause.canMatchZeroChars) {
             canMatchZeroChars = true;
         }
+        return !oldCanMatchZeroChars && canMatchZeroChars;
     }
 
     @Override
